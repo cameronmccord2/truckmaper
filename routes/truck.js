@@ -11,24 +11,25 @@ var url = "mongodb://54.214.247.68:27017/truckMap";
 console.log("Mongo url: " + url);
 // End mongodb required stuff
 
-exports.new = function(req, res){
+//Start global authentication
+var isTokenMissing = function(req){
 	if(req.query.token == undefined || req.query.token == null || req.query.token == ''){
+		return true;
+	}else
+		return false;
+}
+//End global authentication
+
+exports.new = function(req, res){
+	if(isTokenMissing(req)){
 		res.send(401, 'Missing token');
-		res.end();
-	}
-	if(req.headers.id == undefined || req.headers.id == null || req.headers.id == ''){
-		res.send(401, 'Missing truck id');
 		res.end();
 	}
 }
 
 exports.editTruck = function(req, res){
-	if(req.query.token == undefined || req.query.token == null || req.query.token == ''){
+	if(isTokenMissing(req)){
 		res.send(401, 'Missing token');
-		res.end();
-	}
-	if(req.headers.id == undefined || req.headers.id == null || req.headers.id == ''){
-		res.send(401, 'Missing truck id');
 		res.end();
 	}
 	console.log("editTruck how: " + req.get('whatField'));

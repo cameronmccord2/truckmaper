@@ -11,6 +11,34 @@ var url = "mongodb://54.214.247.68:27017/truckMap";
 console.log("Mongo url: " + url);
 // End mongodb required stuff
 
+//Start global authentication
+var isTokenMissing = function(req){
+	if(req.query.token == undefined || req.query.token == null || req.query.token == ''){
+		return true;
+	}else
+		return false;
+}
+//End global authentication
+
+var logLoginLogoutAttempt = function(userId, attempt){
+	Db.connect(url,function(err,db){
+		if(err){
+			res.send(500,"error connecting to db" + err);
+			res.end();
+		}else{
+			collection.update({_id:ObjectId(userId)},{$push:{loginHistory:attempt}},function(err,result){
+				if(err){
+					console.log("error pushing login attempt");
+					db.close();
+				}else{
+					console.log("login attempt logged");
+					db.close();
+				}
+			});
+		}
+	});
+}
+
 exports.login = function(req, res){
 	if(req.query.username == undefined || req.query.username == null || req.query.username == ''){
 		res.send(400, 'Missing user query param');
@@ -29,18 +57,50 @@ exports.login = function(req, res){
 			return;
 		}else{
 		var collection = db.collection('users');
-			collection.find({username:req.query.username},{}).toArray()(function(err, users){
+			collection.find({username:req.query.username},{name:1, rights:1, username:1, password:1}).toArray()(function(err, users){
 				if(err){
 					console.log("error on find username method");
 					res.send(400,"error on find username method");
 					db.close();
 					res.end();
 				}else{
+					var loginAttempt;
 					if(users[0].password == req.query.password){
-						res.json();
-						db.close();
-						
+						var collection2 = db.collection('currentTokens');
+						var tokenData = {
+							'token':token,
+							'userId':users[0]._id,
+							'rights': users[0].rights
+						};
+						collection2.insert(tokenData, function(err, result){
+							if(err){
+								console.log("error on find username method");
+								res.send(400,"error on find username method");
+								db.close();
+								res.end();
+							}
+						});
+						var resultData = {
+							'token':tokenData.token,
+							'name':users[0].name
+						};
+						res.json(resultData);
+						loginAttempt = {
+							'when':(new Date()).getTime(),
+							'type':'login',
+							'success':true
+						};
+					}else{
+						res.send(400, 'invalidPassword');
+						loginAttempt = {
+							'when':(new Date()).getTime(),
+							'type':'login',
+							'success':false
+						};
 					}
+					logLoginLogoutAttempt(users[0]._id, loginAttempt);
+					db.close();
+					res.end();
 				}
 			});
 		}
@@ -48,15 +108,215 @@ exports.login = function(req, res){
 }
 
 exports.logout = function(req, res){
-
-}
-
-exports.userData = function(req, res){
-	if(req.headers.id == undefined || req.headers.id == null || req.headers.id == ''){
+	if(isTokenMissing(req)){
 		res.send(401, 'Missing token');
 		res.end();
 	}
+	Db.connect(url,function(err,db){
+		if(err){
+			res.send(500,"error connecting to db" + err);
+			res.end();
+			return;
+		}else{
+		var collection = db.collection('currentTokens');
+			collection.find({token:req.query.token},{}).toArray(function(err, tokens){
+				if(err){
+					console.log("error on find token method");
+					res.send(400,"error on find token method");
+					db.close();
+					res.end();
+				}else{
+					var logoutAttempt;
+					if(tokens.length == 0){
+						loginAttempt = {
+							'when':(new Date()).getTime(),
+							'type':'logout',
+							'success':false
+						};
+						res.send(401, 'token does not exist');
+						db.close();
+						res.end();
+					}else if(tokens.length > 1){
+						logoutAttempt = {
+							'when':(new Date()).getTime(),
+							'type':'logout',
+							'success':false
+						};
+						res.send(500, 'tokens are messed up');
+						db.close();
+						res.end();
+					}else{
+						logoutAttempt = {
+							'when':(new Date()).getTime(),
+							'type':'logout',
+							'success':true
+						};
+						collection.remove({token:req.query.token},{});// remove token from active tokens
+					}
+					logLoginLogoutAttempt(tokens.userId, logoutAttempt);
+					db.close();
+					res.end();
+				}
+			});
+		}
+	});
 }
+
+exports.userData = function(req, res){
+	if(isTokenMissing(req)){
+		res.send(401, 'Missing token');
+		res.end();
+	}
+	Db.connect(url,function(err,db){
+		if(err){
+			res.send(500,"error connecting to db" + err);
+			res.end();
+			return;
+		}else{
+			var collection = db.collection('users');
+			collection.find({_id:ObjectId(userId)},{name:1, email:1, rights:1}).toArray(function(err, users){
+				if(err){
+					console.log("error on find token method");
+					res.send(400,"error on find token method");
+					db.close();
+					res.end();
+				}else{
+					if(users.length != 1){
+						console.log('user data not found');
+						res.send(401, 'user data not found');
+					}else{
+						console.log('user data sent');
+						res.json(users[0]);
+					}
+					db.close();
+					res.end();
+				}
+			});
+		}
+	});
+}
+
+var newUserKeysRequired = [
+	'firstName', 'lastName', 'email', 'username', 'password', 'companyId', 'question1', 'question2', 'question3', 'answer1', 'answer2', 'answer3'
+];
+var newUserKeysOptional = [
+	'phoneNumber'
+]
+
+exports.newUser = function(req, res){
+	var newUserProfile = new Object();
+	for (key in newUserKeysRequired) {
+		if(req.body[key] == undefined || req.body[key] == null || req.body[key] == ''){
+			res.send(401, 'Missing token: ' + key);
+			res.end();
+			return;
+		}else{
+			newUserProfile[key] = req.body[key];
+		}
+	};
+	for(key in newUserKeysOptional){
+		if(req.body[newUserKeysOptional[i]] == undefined || req.body[newUserKeysOptional[i]] == null || req.body[newUserKeysOptional[i]] == '')
+			newUserProfile[key] = '';
+		else
+			newUserProfile[key] = req.body[key];
+	};
+	newUserProfile['createdDate'] = (new Date()).getTime();
+	Db.connect(url,function(err,db){
+		if(err){
+			res.send(500,"error connecting to db" + err);
+			res.end();
+			return;
+		}else{
+			var companiesCollection = db.collection('companies');
+			companiesCollection.find({companyId:req.body.companyId},{}).toArray(function(err, companies){
+				if(err){
+					res.send(500,"error find companyId to db" + err);
+					res.end();
+					return;
+				}else{
+					if(companies.length == 0){
+						console.log('no company by that id exists');
+						res.send(200, 'invalidCompanyId');
+						db.close();
+						res.end();
+					}else if(companies.length > 1){
+						console.log('companyId error');
+						res.send(500, 'companyId error');
+						db.close();
+						res.end();
+					}else{
+						if(companies[0].userCount < companies[0].userCountMax){
+							newUserProfile.userCountWhenCreated = companies[0].userCount;
+							newUserProfile.companyId = companies[0]._id;
+							var usersCollection = db.collection('users');
+							usersCollection.insert(newUserProfile, function(err, result){
+								if(err){
+									res.send(500,"error insert new user profile to db" + err);
+									res.end();
+									return;
+								}else{
+									var newUserForCompany = {
+										'createdDate':newUserProfile.createdDate,
+										'id':newUserProfile._id
+									};
+									companiesCollection.update({_id:ObjectId(companies[0]._id)}, {$push:{users:newUserForCompany}}, function(err, result1){
+										if(err){
+											res.send(500,"error update newUserForCompany to db" + err);
+											res.end();
+											return;
+										}else{
+											res.send(200, 'newUserCreateSuccess');
+											console.log('newUserCreateSuccess');
+										}
+										db.close();
+										res.end();
+									});
+								}
+							});
+						}else{
+							res.send(500, 'max user count reached');
+							console.log('max user count reached');
+						}
+					}
+				}
+			})
+		}
+	});
+}
+
+exports.doesUsernameExist = function(req, res){
+	if(req.body.username == undefined || req.body.username == null || req.body.username == ''){
+		res.send(401, 'Missing token');
+		res.end();
+	}
+	Db.connect(url,function(err,db){
+		if(err){
+			res.send(500,"error connecting to db" + err);
+			res.end();
+			return;
+		}else{
+		var collection = db.collection('users');
+			collection.find({username:req.query.username},{username:1}).toArray()(function(err, users){
+				if(err){
+					console.log("error on find username method");
+					res.send(400,"error on find username method");
+					db.close();
+					res.end();
+				}else{
+					var loginAttempt;
+					if(users.length == 0){
+						res.send(200, 'doesntExist');
+					}else{
+						res.send(200, 'exists');
+					}
+					db.close();
+					res.end();
+				}
+			});
+		}
+	});
+}
+
 
 
 

@@ -7,7 +7,7 @@ var fs = require('fs');
 
 var nodeSessionId = Math.floor(Math.random()*10000);
 
-var url = "mongodb://54.214.247.68:27017/trucklisting";
+var url = "mongodb://54.214.247.68:27017/truckMap";
 console.log("Mongo url: " + url);
 // End mongodb required stuff
 
@@ -20,6 +20,20 @@ var isTokenMissing = function(req){
 }
 //End global authentication
 
-var login = function(username, password){
+exports.newCompany = function(req, res){
+	
+}
 
+exports.getCompanyInfo = function(req, res){
+	if(isTokenMissing(req)){
+		res.send(401, 'Missing token');
+		res.end();
+	}
+}
+
+exports.editCompanyInfo = function(req, res){
+	if(isTokenMissing(req)){
+		res.send(401, 'Missing token');
+		res.end();
+	}
 }
