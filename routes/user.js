@@ -201,7 +201,19 @@ var newUserKeysRequired = [
 ];
 var newUserKeysOptional = [
 	'phoneNumber'
-]
+];
+
+var newUserRights = {
+	'editItem':false,
+	'newItem':false,
+	'getLocation':false,
+	'setLocation':false,
+	'editCompany':false,
+	'itemsSimple':false,
+	'itemsComplex':false,
+	'allItems':false,
+	'editHistory':false
+};
 
 exports.newUser = function(req, res){
 	var newUserProfile = new Object();
@@ -248,6 +260,7 @@ exports.newUser = function(req, res){
 						if(companies[0].userCount < companies[0].userCountMax){
 							newUserProfile.userCountWhenCreated = companies[0].userCount;
 							newUserProfile.companyId = companies[0]._id;
+							newUserProfile.rights = newUserRights;
 							var usersCollection = db.collection('users');
 							usersCollection.insert(newUserProfile, function(err, result){
 								if(err){

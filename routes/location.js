@@ -41,6 +41,26 @@ exports.updateLocationWebsite = function(req, res){
 	}
 }
 
+exports.getLocationIos = function(req, res){
+	if(isTokenMissing(req)){
+		res.send(401, 'Missing token');
+		res.end();
+	}
+}
+
+exports.getLocationAndroid = function(req, res){
+	if(isTokenMissing(req)){
+		res.send(401, 'Missing token');
+		res.end();
+	}
+}
+
+exports.getLocationWebsite = function(req, res){
+	if(isTokenMissing(req)){
+		res.send(401, 'Missing token');
+		res.end();
+	}
+}
 
 
 
