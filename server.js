@@ -161,6 +161,14 @@ var TruckListingApp = function() {
         //params
         self.app.param('id');
 
+        self.app.get('/truckMap/user/new', user.newUser);
+        self.app.post('/truckMap/user/login', user.login);
+
+
+        self.app.all('*', authentication.checkForToken);
+        self.app.all('*', database.getDbConnection);
+        self.app.all('*', database.getUserFromToken);
+
         //static paths
         self.app.get('/truckMap/allTrucksSimple', map.allTrucksSimple);
         self.app.get('/truckMap/allTrucksComplex', map.allTrucksComplex);
@@ -171,7 +179,7 @@ var TruckListingApp = function() {
         self.app.post('/truckMap/updateLocationIos', location.updateLocationIos);
         self.app.post('/truckMap/updateLocationAndroid', location.updateLocationAndroid);
         self.app.post('/truckMap/updateLocationWebsite', location.updateLocationWebsite);
-        self.app.post('/truckMap/user/login', user.login);
+        
         self.app.post('/truckMap/user/logout', user.logout);
 
         // variable paths

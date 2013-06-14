@@ -11,14 +11,7 @@ var url = "mongodb://54.214.247.68:27017/truckMap";
 console.log("Mongo url: " + url);
 // End mongodb required stuff
 
-//Start global authentication
-var isTokenMissing = function(req){
-	if(req.query.token == undefined || req.query.token == null || req.query.token == ''){
-		return true;
-	}else
-		return false;
-}
-//End global authentication
+
 
 var requiredItemKeys = [
 	'stockNumber', 'vin', 'color', 'qrCode', 'model', 'make', 'year', 'status'
@@ -207,7 +200,7 @@ exports.editItem = function(req, res){
 									}else if(req.get('whatField') == "locationStatus"){
 										theSet = {locationStatus:parseInt(req.get('fieldData'))};
 									}else if(req.get('whatField') == "location"){
-										theSet = {currentLocation:{loc:{type:'Point', coordinates:[req.get('longitude'), req.get('latitude')]}}};
+										theSet = {location:{type:'Point', coordinates:[req.get('longitude'), req.get('latitude')]}};
 									}else{
 										console.log("whatField is invalid: " + req.get('whatField'));
 										res.send(500, "whatField is invalid: " + req.get('whatField'));
@@ -278,7 +271,16 @@ exports.editHistory = function(req, res){
 										res.end();
 									}
 								}
-								
+								var itemsCollection = db.collection('items');
+								itemsCollection.find(findParams,whichFields).toArray(function(err, items){
+									if(err){
+										console.log("error on find user method");
+										res.send(400, "error on find user method");
+									}else
+										res.json(items);
+									db.close();
+									res.end();
+								});
 							}
 						}
 					});
@@ -296,13 +298,13 @@ var itemsComplex = {
 	edits:0
 };
 
+var allFields = {};
+
+var editHistoryFields = {
+	edits:1
+};
+
 exports.allItems = function(req, res){
-	if(isTokenMissing(req)){
-		console.log('missing token');
-		res.send(401, 'Missing token');
-		res.end();
-		return;
-	}
 	Db.connect(url,function(err,db){
 		if(err){
 			res.send(500,"error connecting to db" + err);
@@ -332,7 +334,6 @@ exports.allItems = function(req, res){
 								res.end();
 							}else{
 								var whatTypeOfRequest;
-								var whatTypeOfData;
 								var findParams;
 								var checkForRights = new Array();
 								if(req.query.id != undefined && req.query.id != null && req.query.id != ''){
@@ -346,17 +347,21 @@ exports.allItems = function(req, res){
 								var whichFields;
 								if(req.query.data != undefined && req.query.data != null && req.query.data != ''){
 									if(req.query.data == 'location'){
-										whatTypeOfData = 'location';
 										checkForRights.push('getLocation');
 										whichFields = locationItemFields;
 									}else if(req.query.data == 'simple'){
-										whatTypeOfData = 'simple';
 										checkForRights.push('itemsSimple');
 										whichFields = simpleItemFields;
 									}else if(req.query.data == 'complex'){
-										whatTypeOfData = 'complex';
 										checkForRights.push('itemsComplex');
 										whichFields = complexItemFields;
+									}else if(req.query.data == 'full'){
+										checkForRights.push('itemsComplex');
+										checkForRights.push('editHistory');
+										whichFields = allFields;
+									}else if(req.query.data == 'editHistory'){
+										checkForRights.push('editHistory');
+										whichFields = editHistoryFields;
 									}
 								}
 								for(right in checkForRights){
@@ -364,6 +369,7 @@ exports.allItems = function(req, res){
 										res.send(401, 'insufficientRights');
 										db.close();
 										res.end();
+										return;
 									}
 								}
 								var itemsCollection = db.collection('items');

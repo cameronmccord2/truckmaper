@@ -7,9 +7,58 @@ var fs = require('fs');
 
 var nodeSessionId = Math.floor(Math.random()*10000);
 
-var url = "mongodb://54.214.247.68:27017/trucklisting";
+var url = "mongodb://54.214.247.68:27017/truckMap";
 console.log("Mongo url: " + url);
 // End mongodb required stuff
+
+exports.getDbConnection = function(req, res, next){
+	Db.connect(url,function(err,db){
+		if(err){
+			res.send(500,"error connecting to db" + err);
+			res.end();
+			return;
+		}
+		req.db = db;
+		next();
+	}
+}
+
+exports.getUserFromToken = function(req, res, next){
+	var tokenCollection = req.db.collection('currentTokens');
+	tokenCollection.find(token:req.query.token, function(err, tokens){
+		if(err){
+			console.log("error on find token method");
+			res.send(500, "error on find token method");
+			req.db.close();
+			res.end();
+			return;
+		}else{
+			var usersCollection = req.db.collection('users');
+			usersCollection.find({_id:ObjectId(tokens[0].userId)}, function(err, users){
+				if(err){
+					console.log("error on find user method");
+					res.send(500, "error on find user method");
+					req.db.close();
+					res.end();
+					return;
+				}else{
+					if(users.length != 1){
+						res.send(500, 'incorrect number of users found: ' + users.length);
+						console.log('incorrect number of users found: ' + users.length);
+						req.db.close();
+						res.end();
+						return;
+					}
+					req.user = users[0];
+					next();
+				}
+			});
+		}
+	});
+}
+
+
+
 
 exports.dropCollection = function(req,res){
 	if(req.get('dropWhich') == undefined){
