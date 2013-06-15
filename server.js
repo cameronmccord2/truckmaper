@@ -162,7 +162,8 @@ var TruckListingApp = function() {
         self.app.param('id');
 
         self.app.get('/truckMap/user/new', user.newUser);
-        self.app.post('/truckMap/user/login', user.login);
+        self.app.put('/truckMap/company/new', company.newCompany);
+        self.app.post('/truckMap/user/login', database.getDbConnection, user.login);
 
 
         self.app.all('*', authentication.checkForToken);
