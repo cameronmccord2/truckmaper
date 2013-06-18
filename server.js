@@ -1,25 +1,21 @@
 var express = require('express');
 var fs      = require('fs');
-var api     = require('./routes/api');
-var admin   = require('./routes/admin');
-var adminPhoto   = require('./routes/adminPhoto');
-var adminTruckClicks   = require('./routes/adminTruckClicks');
-var adminContacts   = require('./routes/adminContacts');
-var adminTruckData   = require('./routes/adminTruckData');
+// routes
+var authentication   = require('./routes/authentication');
+var company = require('./routes/company');
 var database = require('./routes/database');
-var clientContacts = require('./routes/clientContacts');
-var clientLogClicks = require('./routes/clientLogClicks');
-var clientTruckData = require('./routes/clientTruckData');
+var item   = require('./routes/item');
+var location = require('./routes/location');
+var login   = require('./routes/login');
+var map   = require('./routes/map');
+var user = require('./routes/user');
+// not my stuff
 var http    = require('http');
 var https   = require('https');
 var mongodb = require('mongodb');
 
 
-/**
- *  Define the sample application.
- */
 var TruckListingApp = function() {
-
     //  Scope.
     var self = this;
 
@@ -108,11 +104,6 @@ var TruckListingApp = function() {
             var link = "http://i.imgur.com/kmbjB.png";
             res.send("<html><body><img src='" + link + "'></body></html>");
         };
-
-        // self.routes['/'] = function(req, res) {
-        //     res.setHeader('Content-Type', 'text/html');
-        //     res.send(self.cache_get('/public/index.html') );
-        // };
     };
 
 
@@ -151,51 +142,39 @@ var TruckListingApp = function() {
             self.app.get(r, self.routes[r]);
         }
 
-        // Routes
+        //static paths
+        //non-security paths
+        self.app.get('/map/user/new', user.newUser);
+        self.app.get('/map/doesUsernameExist', user.doesUsernameExist);
+        self.app.put('/map/company/new', company.newCompany);
+        self.app.post('/map/user/login', database.getDbConnection, user.login);
 
-
-        // app.get('/', function(req,res){
-        //     res.sendfile('index.html');
-        // });
-
-        //params
-        self.app.param('id');
-
-        self.app.get('/truckMap/user/new', user.newUser);
-        self.app.get('/truckMap/doesUsernameExist', user.doesUsernameExist);
-        self.app.put('/truckMap/company/new', company.newCompany);
-        self.app.post('/truckMap/user/login', database.getDbConnection, user.login);
-
-
+        //security checkers
         self.app.all('*', authentication.checkForToken);
         self.app.all('*', database.getDbConnection);
         self.app.all('*', database.getUserFromToken);
 
-        //static paths
-        self.app.get('/truckMap/allTrucksSimple', map.allTrucksSimple);
-        self.app.get('/truckMap/allTrucksComplex', map.allTrucksComplex);
-        self.app.get('/truckMap/getUserData', user.userData);
-        self.app.get('/truckMap/company/info', company.getCompanyInfo);
-        self.app.get('/truckMap/location/ios', location.getLocationIos);
-        self.app.get('/truckMap/location/android', location.getLocationAndroid);
-        self.app.get('/truckMap/location/website', location.getLocationWebsite);
-        self.app.get('/truckMap/item/new', item.newItem);
-        self.app.get('/truckMap/item/all', item.allItems);
+        //security-restricted paths
+        self.app.get('/map/allItemsSimple', map.allTrucksSimple);
+        self.app.get('/map/allItemsComplex', map.allTrucksComplex);
+        self.app.get('/map/user/data', user.userData);
+        self.app.get('/map/company/info', company.getCompanyInfo);
+        self.app.put('/map/company/edit', company.editCompany);
+        self.app.get('/map/location/ios', location.getLocationIos);
+        self.app.get('/map/location/android', location.getLocationAndroid);
+        self.app.get('/map/location/website', location.getLocationWebsite);
+        self.app.get('/map/item/new', item.newItem);
+        self.app.get('/map/item/all', item.allItems);
+        self.app.get('/map/item/history', item.editHistory);
+        self.app.get('/map/item/Complex', map.truckComplexId);
+        self.app.put('/map/item/edit', item.editItem);
 
-        self.app.put('/truckMap/truck/new', truck.new);
+        self.app.put('/map/truck/new', truck.new);
 
-        self.app.post('/truckMap/location/ios', location.updateLocationIos);
-        self.app.post('/truckMap/location/android', location.updateLocationAndroid);
-        self.app.post('/truckMap/location/website', location.updateLocationWebsite);
-        
-        self.app.post('/truckMap/user/logout', user.logout);
-
-        // variable paths
-        self.app.get('/truckMap/truckComplex/:id', map.truckComplexId);
-        self.app.get('/truckMap/item/editHistory', item.editHistory);
-        self.app.put('/truckMap/truck/edit/:id', truck.editTruck);
-        self.app.put('/truckMap/company/edit/:id', company.editCompany);
-        self.app.put('/truckMap/item/edit/:id', item.editItem);
+        self.app.post('/map/location/ios', location.updateLocationIos);
+        self.app.post('/map/location/android', location.updateLocationAndroid);
+        self.app.post('/map/location/website', location.updateLocationWebsite);
+        self.app.post('/map/user/logout', user.logout);
     };
 
 
