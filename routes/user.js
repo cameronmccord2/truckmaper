@@ -30,8 +30,8 @@ exports.login = function(req, res){
 		res.end();
 		return;
 	}
-	var collection = req.db.collection('users');
-		collection.find({username:req.query.username},{name:1, rights:1, username:1, password:1}).toArray()(function(err, users){
+	var usersCollection = req.db.collection('users');
+		usersCollection.find({username:req.query.username},{name:1, rights:1, username:1, password:1}).toArray()(function(err, users){
 			if(err){
 				console.log("error on find username method");
 				res.send(400,"error on find username method");
@@ -40,13 +40,13 @@ exports.login = function(req, res){
 			}else{
 				var loginAttempt;
 				if(req.user.password == req.query.password){
-					var collection2 = req.db.collection('currentTokens');
+					var tokensCollection = req.db.collection('currentTokens');
 					var tokenData = {
 						'token':token,
 						'userId':req.user._id,
 						'rights': req.user.rights
 					};
-					collection2.insert(tokenData, function(err, result){
+					tokensCollection.insert(tokenData, function(err, result){
 						if(err){
 							console.log("error on find username method");
 							res.send(400,"error on find username method");
@@ -222,8 +222,8 @@ exports.doesUsernameExist = function(req, res){
 		res.send(401, 'Missing token');
 		res.end();
 	}
-	var collection = req.db.collection('users');
-		collection.find({username:req.query.username},{username:1}).toArray()(function(err, users){
+	var usersCollection = req.db.collection('users');
+		usersCollection.find({username:req.query.username},{username:1}).toArray()(function(err, users){
 			if(err){
 				console.log("error on find username method");
 				res.send(400,"error on find username method");

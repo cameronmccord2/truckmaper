@@ -64,6 +64,6 @@ exports.getCompanyInfo = function(req, res){
 
 }
 
-exports.editCompanyInfo = function(req, res){
+exports.editCompany = function(req, res){
 
 }

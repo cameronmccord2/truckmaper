@@ -162,6 +162,7 @@ var TruckListingApp = function() {
         self.app.param('id');
 
         self.app.get('/truckMap/user/new', user.newUser);
+        self.app.get('/truckMap/doesUsernameExist', user.doesUsernameExist);
         self.app.put('/truckMap/company/new', company.newCompany);
         self.app.post('/truckMap/user/login', database.getDbConnection, user.login);
 
@@ -174,18 +175,27 @@ var TruckListingApp = function() {
         self.app.get('/truckMap/allTrucksSimple', map.allTrucksSimple);
         self.app.get('/truckMap/allTrucksComplex', map.allTrucksComplex);
         self.app.get('/truckMap/getUserData', user.userData);
+        self.app.get('/truckMap/company/info', company.getCompanyInfo);
+        self.app.get('/truckMap/location/ios', location.getLocationIos);
+        self.app.get('/truckMap/location/android', location.getLocationAndroid);
+        self.app.get('/truckMap/location/website', location.getLocationWebsite);
+        self.app.get('/truckMap/item/new', item.newItem);
+        self.app.get('/truckMap/item/all', item.allItems);
 
         self.app.put('/truckMap/truck/new', truck.new);
 
-        self.app.post('/truckMap/updateLocationIos', location.updateLocationIos);
-        self.app.post('/truckMap/updateLocationAndroid', location.updateLocationAndroid);
-        self.app.post('/truckMap/updateLocationWebsite', location.updateLocationWebsite);
+        self.app.post('/truckMap/location/ios', location.updateLocationIos);
+        self.app.post('/truckMap/location/android', location.updateLocationAndroid);
+        self.app.post('/truckMap/location/website', location.updateLocationWebsite);
         
         self.app.post('/truckMap/user/logout', user.logout);
 
         // variable paths
         self.app.get('/truckMap/truckComplex/:id', map.truckComplexId);
+        self.app.get('/truckMap/item/editHistory', item.editHistory);
         self.app.put('/truckMap/truck/edit/:id', truck.editTruck);
+        self.app.put('/truckMap/company/edit/:id', company.editCompany);
+        self.app.put('/truckMap/item/edit/:id', item.editItem);
     };
 
 
