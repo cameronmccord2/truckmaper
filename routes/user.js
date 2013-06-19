@@ -31,54 +31,52 @@ exports.login = function(req, res){
 		return;
 	}
 	var usersCollection = req.db.collection('users');
-		usersCollection.find({username:req.query.username},{name:1, rights:1, username:1, password:1}).toArray()(function(err, users){
-			if(err){
-				console.log("error on find username method");
-				res.send(400,"error on find username method");
-				req.db.close();
-				res.end();
+	usersCollection.find({username:req.query.username},{name:1, rights:1, username:1, password:1}).toArray()(function(err, users){
+		if(err){
+			console.log("error on find username method");
+			res.send(400,"error on find username method");
+			req.db.close();
+			res.end();
+		}else{
+			var loginAttempt;
+			if(req.user.password == req.query.password){
+				var tokensCollection = req.db.collection('currentTokens');
+				var tokenData = {
+					'userId':req.user._id,
+					'rights': req.user.rights
+				};
+				tokensCollection.insert(tokenData, function(err, result){
+					if(err){
+						console.log("error on find username method");
+						res.send(400,"error on find username method");
+						req.db.close();
+						res.end();
+					}
+				});
+				var resultData = {
+					'token':tokenData.token,
+					'name':req.user.name
+				};
+				res.json(resultData);
+				loginAttempt = {
+					'when':(new Date()).getTime(),
+					'type':'login',
+					'success':true
+				};
 			}else{
-				var loginAttempt;
-				if(req.user.password == req.query.password){
-					var tokensCollection = req.db.collection('currentTokens');
-					var tokenData = {
-						'token':token,
-						'userId':req.user._id,
-						'rights': req.user.rights
-					};
-					tokensCollection.insert(tokenData, function(err, result){
-						if(err){
-							console.log("error on find username method");
-							res.send(400,"error on find username method");
-							req.db.close();
-							res.end();
-						}
-					});
-					var resultData = {
-						'token':tokenData.token,
-						'name':req.user.name
-					};
-					res.json(resultData);
-					loginAttempt = {
-						'when':(new Date()).getTime(),
-						'type':'login',
-						'success':true
-					};
-				}else{
-					res.send(400, 'invalidPassword');
-					loginAttempt = {
-						'when':(new Date()).getTime(),
-						'type':'login',
-						'success':false
-					};
-				}
-				if(logLoginLogoutAttempt(req.user._id, loginAttempt, req) == 'error')
-					console.log('error in login logout attempt');
-				req.db.close();
-				res.end();
+				res.send(400, 'invalidPassword');
+				loginAttempt = {
+					'when':(new Date()).getTime(),
+					'type':'login',
+					'success':false
+				};
 			}
-		});
-	}
+			if(logLoginLogoutAttempt(req.user._id, loginAttempt, req) == 'error')
+				console.log('error in login logout attempt');
+			req.db.close();
+			res.end();
+		}
+	});
 }
 
 exports.logout = function(req, res){
@@ -160,85 +158,83 @@ exports.newUser = function(req, res){
 			newUserProfile[key] = req.body[key];
 	};
 	newUserProfile['createdDate'] = (new Date()).getTime();
-		var companiesCollection = req.db.collection('companies');
-		companiesCollection.find({companyId:req.body.companyId},{}).toArray(function(err, companies){
-			if(err){
-				res.send(500,"error find companyId to db" + err);
+	var companiesCollection = req.db.collection('companies');
+	companiesCollection.find({companyId:req.body.companyId},{}).toArray(function(err, companies){
+		if(err){
+			res.send(500,"error find companyId to db" + err);
+			res.end();
+			return;
+		}else{
+			if(companies.length == 0){
+				console.log('no company by that id exists');
+				res.send(200, 'invalidCompanyId');
+				req.db.close();
 				res.end();
-				return;
+			}else if(companies.length > 1){
+				console.log('companyId error');
+				res.send(500, 'companyId error');
+				req.db.close();
+				res.end();
 			}else{
-				if(companies.length == 0){
-					console.log('no company by that id exists');
-					res.send(200, 'invalidCompanyId');
-					req.db.close();
-					res.end();
-				}else if(companies.length > 1){
-					console.log('companyId error');
-					res.send(500, 'companyId error');
-					req.db.close();
-					res.end();
-				}else{
-					if(companies[0].userCount < companies[0].userCountMax){
-						newUserProfile.userCountWhenCreated = companies[0].userCount;
-						newUserProfile.companyId = companies[0]._id;
-						newUserProfile.rights = newUserRights;
-						var usersCollection = req.db.collection('users');
-						usersCollection.insert(newUserProfile, function(err, result){
-							if(err){
-								res.send(500,"error insert new user profile to db" + err);
-								res.end();
-								return;
-							}else{
-								var newUserForCompany = {
-									'createdDate':newUserProfile.createdDate,
-									'id':newUserProfile._id
-								};
-								companiesCollection.update({_id:ObjectId(companies[0]._id)}, {$push:{users:newUserForCompany}}, function(err, result1){
-									if(err){
-										res.send(500,"error update newUserForCompany to db" + err);
-										res.end();
-										return;
-									}else{
-										res.send(200, 'newUserCreateSuccess');
-										console.log('newUserCreateSuccess');
-									}
-									req.db.close();
+				if(companies[0].userCount < companies[0].userCountMax){
+					newUserProfile.userCountWhenCreated = companies[0].userCount;
+					newUserProfile.companyId = companies[0]._id;
+					newUserProfile.rights = newUserRights;
+					var usersCollection = req.db.collection('users');
+					usersCollection.insert(newUserProfile, function(err, result){
+						if(err){
+							res.send(500,"error insert new user profile to db" + err);
+							res.end();
+							return;
+						}else{
+							var newUserForCompany = {
+								'createdDate':newUserProfile.createdDate,
+								'id':newUserProfile._id
+							};
+							companiesCollection.update({_id:ObjectId(companies[0]._id)}, {$push:{users:newUserForCompany}}, function(err, result1){
+								if(err){
+									res.send(500,"error update newUserForCompany to db" + err);
 									res.end();
-								});
-							}
-						});
-					}else{
-						res.send(500, 'max user count reached');
-						console.log('max user count reached');
-					}
+									return;
+								}else{
+									res.send(200, 'newUserCreateSuccess');
+									console.log('newUserCreateSuccess');
+								}
+								req.db.close();
+								res.end();
+							});
+						}
+					});
+				}else{
+					res.send(500, 'max user count reached');
+					console.log('max user count reached');
 				}
 			}
-		});
+		}
 	});
 }
 
 exports.doesUsernameExist = function(req, res){
-	if(req.body.username == undefined || req.body.username == null || req.body.username == ''){
-		res.send(401, 'Missing token');
+	if(req.query.username == undefined || req.query.username == null || req.query.username == ''){
+		res.send(500, 'Missing username');
 		res.end();
 	}
 	var usersCollection = req.db.collection('users');
-		usersCollection.find({username:req.query.username},{username:1}).toArray()(function(err, users){
-			if(err){
-				console.log("error on find username method");
-				res.send(400,"error on find username method");
-				req.db.close();
-				res.end();
+	usersCollection.find({username:req.query.username},{username:1}).toArray(function(err, users){
+		if(err){
+			console.log("error on find username method");
+			res.send(400,"error on find username method");
+			req.db.close();
+			res.end();
+		}else{
+			var loginAttempt;
+			if(users.length == 0){
+				res.send(200, 'doesntExist');
 			}else{
-				var loginAttempt;
-				if(users.length == 0){
-					res.send(200, 'doesntExist');
-				}else{
-					res.send(200, 'exists');
-				}
-				req.db.close();
-				res.end();
+				res.send(200, 'exists');
 			}
-		});
-	}
+			req.db.close();
+			res.end();
+		}
+	});
 }

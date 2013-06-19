@@ -20,12 +20,12 @@ exports.getDbConnection = function(req, res, next){
 		}
 		req.db = db;
 		next();
-	}
+	});
 }
 
 exports.getUserFromToken = function(req, res, next){
 	var tokenCollection = req.db.collection('currentTokens');
-	tokenCollection.find(token:req.query.token, function(err, tokens){
+	tokenCollection.find({token:req.query.token}, function(err, tokens){
 		if(err){
 			console.log("error on find token method");
 			res.send(500, "error on find token method");

@@ -51,7 +51,7 @@ exports.newItem = function(req, res){
 		newItemObject['status'] = 1;
 		newItemObject['type'] = 1;
 		newItemObject['locationStatus'] = 1;
-		newItemObject['edits'] new Array();
+		newItemObject['edits'] = new Array();
 		newItemObject['currentLocation'] = {loc:{type:'Point', coordinates:[0, 0]}};
 		var itemCollection = req.db.collection('items');
 		itemsCollection.insert(newItemObject, function(err, result){
@@ -123,7 +123,7 @@ exports.editItem = function(req, res){
 			res.end();
 			return;
 		}
-		itemsCollection.update({_id:ObjectId(req.get('id'))}, {$set:theSet, $push:{edits:{edit:theSet, whenSet:(new Date()).getTime(), editedByWho:req.user._id};}}, function(err,result){
+		itemsCollection.update({_id:ObjectId(req.get('id'))}, {$set:theSet, $push:{edits:{edit:theSet, whenSet:(new Date()).getTime(), editedByWho:req.user._id}}}, function(err,result){
 			if(err){
 				console.log("error on find method for: " + req.get('whatField') + " with info: " + req.get('fieldData'));
 				res.send(400);
@@ -171,7 +171,7 @@ var editHistoryFields = {
 	edits:1
 };
 
-exports.allItems = function(req, res){
+exports.items = function(req, res){
 	var whatTypeOfRequest;
 	var findParams;
 	var checkForRights = new Array();
