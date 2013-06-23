@@ -15,7 +15,7 @@ var https   = require('https');
 var mongodb = require('mongodb');
 
 
-var TruckListingApp = function() {
+var ItemMaperApp = function() {
     //  Scope.
     var self = this;
 
@@ -118,7 +118,7 @@ var TruckListingApp = function() {
         // Configuration
  
         self.app.configure(function () {
-            self.app.set('title', 'TruckListing');
+            self.app.set('title', 'ItemMaper');
             //self.app.set('views', __dirname + '/views');
             //self.app.set('view engine', 'jade');
             self.app.use(express.limit(100000000));//100 mb limit on file uploads
@@ -189,7 +189,7 @@ var TruckListingApp = function() {
         self.initializeServer();
     };
 
-    self.options = {
+    self.httpsOptions = {
         key: fs.readFileSync('server.key').toString(),
         cert: fs.readFileSync('server.crt').toString()
     }
@@ -200,8 +200,8 @@ var TruckListingApp = function() {
      */
     self.start = function() {
         //  Start the app on the specific interface (and port).
-        self.server = https.createServer(self.options, self.app).listen(self.port, function() {
-            console.log('%s: Node server started on %s:%d ...',
+        self.server = https.createServer(self.httpsOptions, self.app).listen(self.port, function() {
+            console.log('%s: Node https server started on %s:%d ...',
                         Date(Date.now() ), self.ipaddress, self.port);
         });
     };
@@ -209,7 +209,7 @@ var TruckListingApp = function() {
     
 };   /*  Sample Application.  */
 
-var tapp = new TruckListingApp();
+var tapp = new ItemMaperApp();
 tapp.initialize();
 tapp.start();
 
