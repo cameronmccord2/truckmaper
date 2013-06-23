@@ -16,16 +16,16 @@
   "homepage": "",
   "repository": {
     "type": "git",
-    "url": "https://gitub.com/openshift/origin-server"
+    "url": "https://gitub.com/cameronmccord2/truckmaper.git"
   },
 
   "engines": {
-    "node": ">= 0.10.5",
-    "npm": ">= 1.2.18"
+    "node": ">= 0.10.12",
+    "npm": ">= 1.2.24"
   },
 
   "dependencies": {
-    "express": ">=3.0.0",
+    "express": ">=3.2.6",
     "mongodb": ">=1.3.3"
   },
   "devDependencies": {},

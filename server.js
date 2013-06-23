@@ -142,7 +142,7 @@ var ItemMaperApp = function() {
             self.app.get(r, self.routes[r]);
         }
 
-        //static paths
+        // paths
         //non-security paths
         self.app.get('/map/user/new', user.newUser);
         self.app.get('/map/doesUsernameExist', user.doesUsernameExist);
