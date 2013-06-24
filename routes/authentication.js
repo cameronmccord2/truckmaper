@@ -8,7 +8,7 @@ var sendError = function(req, res, status, message, closeAndEnd, consoleLogSpeci
 }
 
 exports.checkForToken = function(req, res, next){
-	if(req.query.token == undefined || req.query.token == null || req.query.token == ''){
+	if(req.query.token == undefined || req.query.token == null || req.query.token == '')
 		sendError(req, res, 401, 'Missing token', true);
 	else
 		next();
