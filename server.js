@@ -144,15 +144,16 @@ var ItemMaperApp = function() {
 
         // paths
         //non-security paths
+        self.app.all('/map/*', database.getDbConnection);
         self.app.get('/map/user/new', user.newUser);
         self.app.get('/map/doesUsernameExist', user.doesUsernameExist);
-        self.app.put('/map/company/new', company.newCompany);
-        self.app.post('/map/user/login', database.getDbConnection, user.login);
+        //self.app.put('/map/company/new', company.newCompany);
+        self.app.post('/map/user/login', user.login);
+        self.app.post('/map/user/logout', user.logout);
 
         //security checkers
-        self.app.all('*', authentication.checkForToken);
-        self.app.all('*', database.getDbConnection);
-        self.app.all('*', database.getUserFromToken);
+        self.app.all('/map/*', authentication.checkForToken);
+        self.app.all('/map/*', database.getUserFromToken);
 
         //security-restricted paths
         self.app.get('/map/allItemsSimple', map.allTrucksSimple);
