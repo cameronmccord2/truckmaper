@@ -32,12 +32,19 @@ var truckLocationStatuses = [
 	{'num':4, 'word':'inShop', 'realWord':'In the shop'}
 ];
 
-exports.newItem = function(req, res){
-	if(!req.user.rights.newItem){
-		res.send(401, 'insufficientRights');
+var sendError = function(req, res, status, message, closeAndEnd, consoleLogSpecific){
+	console.log(consoleLogSpecific || message);
+	res.send(status, message);
+	if(closeAndEnd){
 		req.db.close();
 		res.end();
-	}else{
+	}
+}
+
+exports.newItem = function(req, res){
+	if(!req.user.rights.newItem)
+		sendError(req, res, 401, 'insufficientRights', true);
+	else{
 		var newItemObject = new Object();
 		for(key in requiredItemKeys){
 			newItemObject[key] = '';
@@ -55,12 +62,10 @@ exports.newItem = function(req, res){
 		newItemObject['currentLocation'] = {loc:{type:'Point', coordinates:[0, 0]}};
 		var itemCollection = req.db.collection('items');
 		itemsCollection.insert(newItemObject, function(err, result){
-			if(err){
-				console.log("error on insert new item method");
-				res.send(400, "error on insert new item method");
-			}else{
+			if(err)
+				sendError(req, res, 500, "error on insert new item method", false);
+			else
 				res.json(newItemObject);
-			}
 			req.db.close();
 			res.end();
 		});
@@ -68,11 +73,9 @@ exports.newItem = function(req, res){
 }
 
 exports.editItem = function(req, res){
-	if(!req.user.rights.editItem){
-		res.send(401, 'insufficientRights');
-		req.db.close();
-		res.end();
-	}else{
+	if(!req.user.rights.editItem)
+		sendError(req, res, 401, 'insufficientRights', true);
+	else{
 		var itemsCollection = req.db.collection('items');
 		var boolValue = req.get('fieldData') == "true"? true : false;
 		var theSet;
@@ -117,17 +120,13 @@ exports.editItem = function(req, res){
 		}else if(req.get('whatField') == "location"){
 			theSet = {location:{type:'Point', coordinates:[req.get('longitude'), req.get('latitude')]}};
 		}else{
-			console.log("whatField is invalid: " + req.get('whatField'));
-			res.send(500, "whatField is invalid: " + req.get('whatField'));
-			req.db.close();
-			res.end();
+			sendError(req, res, 400, "whatField is invalid: " + req.get('whatField'), true);
 			return;
 		}
 		itemsCollection.update({_id:ObjectId(req.get('id'))}, {$set:theSet, $push:{edits:{edit:theSet, whenSet:(new Date()).getTime(), editedByWho:req.user._id}}}, function(err,result){
-			if(err){
-				console.log("error on find method for: " + req.get('whatField') + " with info: " + req.get('fieldData'));
-				res.send(400);
-			}else
+			if(err)
+				sendError(req, res, 400, "error on find method for: " + req.get('whatField') + " with info: " + req.get('fieldData'), false);
+			else
 				res.send(200, result);
 			req.db.close();
 			res.end();
@@ -140,17 +139,15 @@ exports.editHistory = function(req, res){
 	checkForRights.push('editHistory');
 	for(right in checkForRights){
 		if(!req.user.rights[right]){
-			res.send(401, 'insufficientRights');
-			req.db.close();
-			res.end();
+			sendError(req, res, 401, 'insufficientRights', true);
+			return;
 		}
 	}
 	var itemsCollection = req.db.collection('items');
 	itemsCollection.find(findParams,whichFields).toArray(function(err, items){
-		if(err){
-			console.log("error on find user method");
-			res.send(400, "error on find user method");
-		}else
+		if(err)
+			sendError(req, res, 400, "error on find user method", false);
+		else
 			res.json(items);
 		req.db.close();
 		res.end();
@@ -175,48 +172,45 @@ exports.items = function(req, res){
 	var whatTypeOfRequest;
 	var findParams;
 	var checkForRights = new Array();
-	if(req.query.id != undefined && req.query.id != null && req.query.id != ''){
+	if(req.body.id != undefined && req.body.id != null && req.body.id != ''){
 		whatTypeOfRequest = 'specific';
-		findParams = {_id:ObjectId(req.query.id)};
+		findParams = {_id:ObjectId(req.body.id)};
 	}else{
 		whatTypeOfRequest = 'all';
 		checkForRights.push('allItems');
 		findParams = {companyId:req.user.companyId};
 	}
 	var whichFields;
-	if(req.query.data != undefined && req.query.data != null && req.query.data != ''){
-		if(req.query.data == 'location'){
+	if(req.body.data != undefined && req.body.data != null && req.body.data != ''){
+		if(req.body.data == 'location'){
 			checkForRights.push('getLocation');
 			whichFields = locationItemFields;
-		}else if(req.query.data == 'simple'){
+		}else if(req.body.data == 'simple'){
 			checkForRights.push('itemsSimple');
 			whichFields = simpleItemFields;
-		}else if(req.query.data == 'complex'){
+		}else if(req.body.data == 'complex'){
 			checkForRights.push('itemsComplex');
 			whichFields = complexItemFields;
-		}else if(req.query.data == 'full'){
+		}else if(req.body.data == 'full'){
 			checkForRights.push('itemsComplex');
 			checkForRights.push('editHistory');
 			whichFields = allFields;
-		}else if(req.query.data == 'editHistory'){
+		}else if(req.body.data == 'editHistory'){
 			checkForRights.push('editHistory');
 			whichFields = editHistoryFields;
 		}
 	}
 	for(right in checkForRights){
 		if(!req.user.rights[right]){
-			res.send(401, 'insufficientRights');
-			req.db.close();
-			res.end();
+			sendError(req, res, 401, 'insufficientRights', true);
 			return;
 		}
 	}
 	var itemsCollection = req.db.collection('items');
 	itemsCollection.find(findParams,whichFields).toArray(function(err, items){
-		if(err){
-			console.log("error on find user method");
-			res.send(400, "error on find user method");
-		}else
+		if(err)
+			sendError(req, res, 400, "error on find item method", false);
+		else
 			res.json(items);
 		req.db.close();
 		res.end();

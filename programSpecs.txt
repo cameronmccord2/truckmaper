@@ -1,0 +1,69 @@
+UserGroupTypes = [
+	companyConnected:{
+		description:'Those who require a company subscription(like warner truck center) to access truck locations',
+		companyIdRequired:true,
+		payRequired:false,
+		payInApp:false,
+		rights:{
+			updateLocation:true,
+			getLocation:true,
+			changeItemData:true,
+			kioskAccess:true
+		},
+		personalAccountWithUs:true,
+		accountRequired:true,
+
+	},
+	transientPay:{
+		description:'Those who only access locations, on a pay per location basis.',
+		companyIdRequired:false,
+		payRequired:true,
+		payInApp:true,
+		rights:{
+			updateLocation:false,
+			getLocation:true,
+			changeItemData:false,
+			kioskAccess:true
+		},
+		personalAccountWithUs:true,
+		accountRequired:false,
+
+	},
+	locationSaver:{
+		description:'Those who only save locations, like a car auction employee who parks cars and saves the location',
+		companyIdRequired:false,
+		payRequired:false,
+		payInApp:false,
+		rights:{
+			updateLocation:true,
+			getLocation:false,
+			changeItemData:false,
+			kioskAccess:false
+		},
+		personalAccountWithUs:false,
+		accountRequired:false,
+	}
+];
+
+CompanyTypes = [
+	specificNumberSubscribedUsers:{
+		description:'A company who has a scecific number of users allowed to access that companys locations every time period',
+		companyIdRequired:true,
+		payRequired:true,
+		numberOfUsersPerPeriod:true,
+		periodLength:[
+			week:{
+
+			},
+			month:{
+
+			},
+			year:{
+
+			}
+		],
+		billPeriodLength:[
+			
+		]
+	}
+];
