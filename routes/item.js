@@ -32,6 +32,38 @@ var truckLocationStatuses = [
 	{'num':4, 'word':'inShop', 'realWord':'In the shop'}
 ];
 
+var newItemObject = {
+	name:'',
+	location: new Array()
+};
+
+var newLocationObject = function(typeOfLocation, longitude, latitude, who){
+	return {loc:{type:typeOfLocation, coordinates:[longitude, latitude], who:who, when:(new Date()).getTime()}};
+}
+
+var newItemHistoryEntryObject = function(who, how, typeOfAccess){
+	return {who:who, how:how, typeOfAccess:typeOfAccess, when:(new Date()).getTime()};
+}
+
+var newItemObject = function(attributes, locationCode, area, location, historyEntry){
+	return {attributes:attributes, locationCode:locationCode, area:area, location:[location], history:[historyEntry]};
+}
+
+var newAttributeObject = function(key, value){
+	return {key:key, value:value};
+}
+
+var accessType = {
+	create:100,
+	editDetails:200,
+	updateLocation:300,
+	delete:400
+};
+
+var companyToAreaFields = {
+	name:1
+};
+
 var sendError = function(req, res, status, message, closeAndEnd, consoleLogSpecific){
 	console.log(consoleLogSpecific || message);
 	res.send(status, message);
@@ -45,21 +77,31 @@ exports.newItem = function(req, res){
 	if(!req.user.rights.newItem)
 		sendError(req, res, 401, 'insufficientRights', true);
 	else{
-		var newItemObject = new Object();
-		for(key in requiredItemKeys){
-			newItemObject[key] = '';
+		// do an area check here
+		// if(req.body.area == undefined || req.body.area == null || req.body.area == '')
+		// 	var companiesCollection = req.db.collection('companies');
+		// 	companiesCollection.find({}, companyToAreaFields, function(err, companies){
+		// 		if(err){
+		// 			sendError(req, res, 400, "error on find method for area with lat: " + req.body.latitude + " and long: " + req.body.longitude, true);
+		// 			return;
+		// 		}
+		// 		var area = companies;
+		// 	});
+		// }else{
+		// 	// area provided
+		// }
+		var attributeArray = new Array();
+		if(req.body.attributes == undefined || req.body.attributes == null || req.body.attributes == ''){
+			for (var i = req.body.attributes.length - 1; i >= 0; i--) {
+				if(req.body.attributes[i].key == undefined || req.body.attributes[i].key == null || req.body.attributes[i].key == '' || req.body.attributes[i].value == undefined || req.body.attributes[i].value == null || req.body.attributes[i].value == ''){
+					console.log('null attribute or key found', req.body.attributes[i]);
+				}else{
+					attributeArray.push(newAttributeObject(req.body.attributes[i].key, req.body.attributes[i].value));
+				}
+			};
 		}
-		for(key in optionalItemKeys){
-			newItemObject[key] = '';
-		}
-		newItemObject['companyId'] = req.user.companyId;
-		newItemObject['createdBy'] = req.user._id;
-		newItemObject['createdDate'] = (new Date()).getTime();
-		newItemObject['status'] = 1;
-		newItemObject['type'] = 1;
-		newItemObject['locationStatus'] = 1;
-		newItemObject['edits'] = new Array();
-		newItemObject['currentLocation'] = {loc:{type:'Point', coordinates:[0, 0]}};
+		var newItem = newItemObject(attributeArray, req.body.locationCode, "no area yet", newLocationObject("Point", req.body.longitude, req.body.latitude,
+			req.user._id), newItemHistoryEntryObject(req.user._id, req.body.deviceType, accessType.create));
 		var itemCollection = req.db.collection('items');
 		itemsCollection.insert(newItemObject, function(err, result){
 			if(err)

@@ -1,6 +1,7 @@
 UserGroupTypes = [
 	companyConnected:{
 		description:'Those who require a company subscription(like warner truck center) to access truck locations',
+		groupId:1000,
 		companyIdRequired:true,
 		payRequired:false,
 		payInApp:false,
@@ -16,14 +17,23 @@ UserGroupTypes = [
 	},
 	transientPay:{
 		description:'Those who only access locations, on a pay per location basis.',
+		groupId:2000,
 		companyIdRequired:false,
 		payRequired:true,
 		payInApp:true,
-		rights:{
-			updateLocation:false,
-			getLocation:true,
-			changeItemData:false,
-			kioskAccess:true
+		userObject:{
+			rights:{
+				updateLocation:false,
+				getLocation:true,
+				changeItemData:false,
+				kioskAccess:true
+			},
+			locationsPaidFor:{
+
+			},
+			companiesCanSee:{
+				
+			}
 		},
 		personalAccountWithUs:true,
 		accountRequired:false,
@@ -31,6 +41,7 @@ UserGroupTypes = [
 	},
 	locationSaver:{
 		description:'Those who only save locations, like a car auction employee who parks cars and saves the location',
+		groupId:3000,
 		companyIdRequired:false,
 		payRequired:false,
 		payInApp:false,
@@ -48,6 +59,7 @@ UserGroupTypes = [
 CompanyTypes = [
 	specificNumberSubscribedUsers:{
 		description:'A company who has a scecific number of users allowed to access that companys locations every time period',
+		groupId:4000,
 		companyIdRequired:true,
 		payRequired:true,
 		numberOfUsersPerPeriod:true,
@@ -63,7 +75,7 @@ CompanyTypes = [
 			}
 		],
 		billPeriodLength:[
-			
+
 		]
 	}
 ];
