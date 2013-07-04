@@ -36,6 +36,16 @@ exports.getDbConnection = function(req, res, next){
 	});
 }
 
+exports.closeDb = function(req, res, next){
+	console.log("close db");
+	req.db.close();
+	next();
+}
+
+exports.endResponse = function(req, res, next){
+	res.end();
+}
+
 exports.getUserFromToken = function(req, res, next){
 	var tokenCollection = req.db.collection('currentTokens');
 	tokenCollection.find({token:req.query.token}, function(err, tokens){

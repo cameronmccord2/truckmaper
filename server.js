@@ -61,7 +61,7 @@ var ItemMaperApp = function() {
      */
     self.terminator = function(sig){
         if (typeof sig === "string") {
-           console.log('%s: Received %s - terminating trucklisting app ...',
+           console.log('%s: Received %s - terminating item maper app ...',
                        Date(Date.now()), sig);
            process.exit(1);
         }
@@ -143,6 +143,14 @@ var ItemMaperApp = function() {
         }
 
         // paths
+        self.app.all('*', function(req, res){
+            console.log('recieved thing');
+            res.send(200, "hihi");
+            res.end();
+        });
+        self.app.get('/test2', authentication.test2);
+        self.app.get('/test2', authentication.checkForToken);
+        self.app.all('/test2', database.closeDb, database.endResponse);
         //non-security paths
         self.app.all('/map/*', database.getDbConnection);
         self.app.get('/map/user/new', user.newUser);
@@ -156,8 +164,6 @@ var ItemMaperApp = function() {
         self.app.all('/map/*', database.getUserFromToken);
 
         //security-restricted paths
-        self.app.get('/map/allItemsSimple', map.allTrucksSimple);
-        self.app.get('/map/allItemsComplex', map.allTrucksComplex);
         self.app.get('/map/user/data', user.userData);
         self.app.get('/map/company/info', company.getCompanyInfo);
         self.app.put('/map/company/edit', company.editCompany);
@@ -165,17 +171,15 @@ var ItemMaperApp = function() {
         self.app.get('/map/location/android', location.getLocationAndroid);
         self.app.get('/map/location/website', location.getLocationWebsite);
         self.app.get('/map/item/new', item.newItem);
-        self.app.get('/map/item/all', item.allItems);
-        self.app.get('/map/item/history', item.editHistory);
-        self.app.get('/map/item/Complex', map.truckComplexId);
+        self.app.get('/map/item', item.items);
         self.app.put('/map/item/edit', item.editItem);
-
-        self.app.put('/map/truck/new', truck.new);
 
         self.app.post('/map/location/ios', location.updateLocationIos);
         self.app.post('/map/location/android', location.updateLocationAndroid);
         self.app.post('/map/location/website', location.updateLocationWebsite);
         self.app.post('/map/user/logout', user.logout);
+
+        self.app.all('/map/*', database.closeDb, database.endResponse);
     };
 
 
@@ -191,8 +195,8 @@ var ItemMaperApp = function() {
     };
 
     self.httpsOptions = {
-        key: fs.readFileSync('server.key').toString(),
-        cert: fs.readFileSync('server.crt').toString()
+        key: fs.readFileSync('server.key'),
+        cert: fs.readFileSync('server.crt')
     }
 
 
