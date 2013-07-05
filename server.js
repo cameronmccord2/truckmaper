@@ -9,6 +9,7 @@ var location = require('./routes/location');
 var login   = require('./routes/login');
 var map   = require('./routes/map');
 var user = require('./routes/user');
+var dbAdmin = require('./routes/dbAdmin');
 // not my stuff
 var http    = require('http');
 var https   = require('https');
@@ -106,6 +107,8 @@ var ItemMaperApp = function() {
         };
     };
 
+    
+
 
     /**
      *  Initialize the server (express) and create the routes and register
@@ -143,13 +146,19 @@ var ItemMaperApp = function() {
         }
 
         // paths
+        self.app.get('/test2', function(req, res){
+            
+        });
+        self.app.get('/dbAdmin/*', database.getDbConnection);
+        self.app.get('/dbAdmin/clearTokens', dbAdmin.clearTokens);
+        self.app.get('/dbAdmin/clearUsers', dbAdmin.clearUsers);
         //non-security paths
         self.app.all('/map/*', database.getDbConnection);
         self.app.get('/map/user/new', user.newUser);
         self.app.get('/map/doesUsernameExist', user.doesUsernameExist);
         //self.app.put('/map/company/new', company.newCompany);
-        self.app.post('/map/user/login', user.login);
-        self.app.post('/map/user/logout', user.logout);
+        self.app.get('/map/user/login', user.login);
+        self.app.get('/map/user/logout', user.logout);
 
         //security checkers
         self.app.all('/map/*', authentication.checkForToken);
@@ -187,11 +196,11 @@ var ItemMaperApp = function() {
     };
 
     self.httpsOptions = {
-        key: fs.readFileSync('key.pem'),
-        cert: fs.readFileSync('cert.pem')
+        key: fs.readFileSync('key.pem').toString(),
+        cert: fs.readFileSync('cert.pem').toString()
     }
 
-
+    // console.log(fs.readFileSync('key.pem').toString(),fs.readFileSync('cert.pem').toString())
     /**
      *  Start the server (starts up the sample application).
      */
@@ -202,6 +211,7 @@ var ItemMaperApp = function() {
             console.log('%s: Node https server started on %s:%d ...',
                         Date(Date.now() ), self.ipaddress, self.port);
         });
+        // console.log(self.server);
     };
 
     

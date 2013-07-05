@@ -6,7 +6,10 @@ var ObjectId = require('mongodb').ObjectID;
 var fs = require('fs');
 
 var nodeSessionId = Math.floor(Math.random()*10000);
-
+// winServer2012 - winServer2012 - 54.235.66.182 - cameronmccord3@gmail.com - 2759-9812-7528
+// webServer1 - myWebServers - 54.225.66.110 - cameronmccord3@gmail.com - 2759-9812-7528
+// nodeServer1 - cam4UbuntuKey - 54.214.238.10 - cameronmccord4@gmail.com - 5993-7832-3978
+// mongodbNode1 - cluster-keypair - 54.214.247.68 - cameronmccord5@gmail.com - 4751-2487-5947
 var url = "mongodb://54.214.247.68:27017/serverTester";
 console.log("Mongo url: " + url);
 // End mongodb required stuff
@@ -32,6 +35,7 @@ exports.getDbConnection = function(req, res, next){
 		}
 		req.db = db;
 		req.collectionNames = collectionNames;
+		console.log("got db connection")
 		next();
 	});
 }
