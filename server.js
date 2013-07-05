@@ -30,7 +30,7 @@ var ItemMaperApp = function() {
     self.setupVariables = function() {
         //  Set the environment variables we need.
         self.ipaddress = '54.214.238.10';
-        self.port      = 443;
+        self.port      = 8909;
     };
 
 
@@ -143,14 +143,6 @@ var ItemMaperApp = function() {
         }
 
         // paths
-        self.app.all('*', function(req, res){
-            console.log('recieved thing');
-            res.send(200, "hihi");
-            res.end();
-        });
-        self.app.get('/test2', authentication.test2);
-        self.app.get('/test2', authentication.checkForToken);
-        self.app.all('/test2', database.closeDb, database.endResponse);
         //non-security paths
         self.app.all('/map/*', database.getDbConnection);
         self.app.get('/map/user/new', user.newUser);
@@ -195,8 +187,8 @@ var ItemMaperApp = function() {
     };
 
     self.httpsOptions = {
-        key: fs.readFileSync('server.key'),
-        cert: fs.readFileSync('server.crt')
+        key: fs.readFileSync('key.pem'),
+        cert: fs.readFileSync('cert.pem')
     }
 
 
@@ -205,7 +197,8 @@ var ItemMaperApp = function() {
      */
     self.start = function() {
         //  Start the app on the specific interface (and port).
-        self.server = https.createServer(self.httpsOptions, self.app).listen(self.port, function() {
+        // self.server = https.createServer(self.httpsOptions, self.app).listen(self.port, function() {
+        self.server = self.app.listen(self.port, function(){
             console.log('%s: Node https server started on %s:%d ...',
                         Date(Date.now() ), self.ipaddress, self.port);
         });
