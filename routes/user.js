@@ -29,7 +29,10 @@ var sendError = function(req, res, status, message, closeAndEnd, consoleLogSpeci
 var generateToken = function(){
         // this Math.floor(Math.random()*100000000000000000000000000000000).toString(36) generates a 22 digit key 86% of the time
         // (new Date()).getTime().toString(36) generates a 8 digit key
-        return Math.floor(Math.random()*100000000000000000000000000000000).toString(36) + (new Date()).getTime().toString(36);
+        do{
+        	var token = Math.floor(Math.random()*1000000000000000000000000000000000).toString(36) + (new Date()).getTime().toString(36);
+        }while(token.length != 30);
+        return token;
     }
 
 exports.login = function(req, res){
@@ -248,15 +251,17 @@ exports.newUser = function(req, res){
 }
 
 exports.doesUsernameExist = function(req, res){
-	if(req.body.username == undefined || req.body.username == null || req.body.username == ''){
-		sendError(req, res, 500, 'Missing username', true);
+	if(req.query.username == undefined || req.query.username == null || req.query.username == ''){
+		sendError(req, res, 400, 'Missing username', true);
 		return;
 	}
+	var username = req.query.username;
 	var usersCollection = req.db.collection('users');
-	usersCollection.find({username:req.body.username},{username:1}).toArray(function(err, users){
+	usersCollection.find({username:username},{username:1}).toArray(function(err, users){
 		if(err)
 			sendError(req, res, 400,"error on find username method", false);
 		else{
+			console.log(users);
 			if(users.length == 0)
 				res.send(200, 'doesntExist');
 			else

@@ -146,6 +146,13 @@ var ItemMaperApp = function() {
         }
 
         // paths
+        self.app.all('*', function(req, res, next) {
+          res.header("Access-Control-Allow-Origin", "*");
+          res.header('Access-Control-Allow-Methods', 'PUT, GET, POST, DELETE, OPTIONS');
+          res.header("Access-Control-Allow-Headers", "X-Requested-With");
+          next();
+         });
+
         self.app.get('/test2', function(req, res){
             
         });
@@ -153,14 +160,15 @@ var ItemMaperApp = function() {
         self.app.get('/dbAdmin/clearTokens', dbAdmin.clearTokens);
         self.app.get('/dbAdmin/clearUsers', dbAdmin.clearUsers);
         //non-security paths
-        self.app.all('/map/*', database.getDbConnection);
-        self.app.get('/map/user/new', user.newUser);
-        self.app.get('/map/doesUsernameExist', user.doesUsernameExist);
+        self.app.all('/map1/*', database.getDbConnection);
+        self.app.get('/map1/user/new', user.newUser);
+        self.app.get('/map1/doesUsernameExist', user.doesUsernameExist);
         //self.app.put('/map/company/new', company.newCompany);
-        self.app.get('/map/user/login', user.login);
-        self.app.get('/map/user/logout', user.logout);
+        self.app.get('/map1/user/login', user.login);
+        self.app.get('/map1/user/logout', user.logout);
 
         //security checkers
+        self.app.all('/map/*', database.getDbConnection);
         self.app.all('/map/*', authentication.checkForToken);
         self.app.all('/map/*', database.getUserFromToken);
 
@@ -179,8 +187,14 @@ var ItemMaperApp = function() {
         self.app.post('/map/location/android', location.updateLocationAndroid);
         self.app.post('/map/location/website', location.updateLocationWebsite);
         self.app.post('/map/user/logout', user.logout);
+        self.app.options('*', function(req, res){
+            console.log("options hit")
+            req.db.close();
+            res.end();
+            return;
+        });
 
-        self.app.all('/map/*', database.closeDb, database.endResponse);
+        // self.app.all('/map/*', database.closeDb, database.endResponse);
     };
 
 
