@@ -52,12 +52,12 @@ exports.endResponse = function(req, res, next){
 
 exports.getUserFromToken = function(req, res, next){
 	var tokenCollection = req.db.collection('currentTokens');
-	console.log(req.query.token)
-	tokenCollection.find({token:req.query.token}, function(err, tokens){
+	// console.log(req.query.token)
+	tokenCollection.find({}, function(err, tokens){
 		if(err)
 			sendError(req, res, 500, "error on find token method", true);
 		else{
-			console.log(tokens);
+			console.log(tokens)
 			var usersCollection = req.db.collection('users');
 			usersCollection.find({_id:ObjectId(tokens[0].userId)}, function(err, users){
 				if(err)
