@@ -27,30 +27,27 @@ var sendError = function(req, res, status, message, closeAndEnd, consoleLogSpeci
 }
 
 var generateToken = function(){
-        // this Math.floor(Math.random()*100000000000000000000000000000000).toString(36) generates a 22 digit key 86% of the time
-        // (new Date()).getTime().toString(36) generates a 8 digit key
-        do{
-        	var token = Math.floor(Math.random()*1000000000000000000000000000000000).toString(36) + (new Date()).getTime().toString(36);
-        }while(token.length != 30);
-        return token;
-    }
+    // this Math.floor(Math.random()*100000000000000000000000000000000).toString(36) generates a 22 digit key 86% of the time
+    // (new Date()).getTime().toString(36) generates a 8 digit key
+    do{
+    	var token = Math.floor(Math.random()*1000000000000000000000000000000000).toString(36) + (new Date()).getTime().toString(36);
+    }while(token.length != 30);
+    return token;
+}
+
+var loginKeysRequired = ['username', 'password'];
 
 exports.login = function(req, res){
 	console.log('login request');
-	var userLogin = {
-		username:'',
-		password:''
+	var userLogin = new Object();
+	for (key in loginKeysRequired) {
+		if(req.query[loginKeysRequired[key]] == undefined || req.query[loginKeysRequired[key]] == null || req.query[loginKeysRequired[key]] == ''){
+			sendError(req, res, 401, 'Missing token: ' + loginKeysRequired[key], true);
+			return;
+		}else{
+			userLogin[loginKeysRequired[key]] = req.query[loginKeysRequired[key]];
+		}
 	};
-	if(req.query.username == undefined || req.query.username == null || req.query.username == ''){
-		sendError(req, res, 400, 'Missing username in query params', true);
-		return;
-	}
-	userLogin.username = req.query.username;
-	if(req.query.password == undefined || req.query.password == null || req.query.password == ''){
-		sendError(req, res, 400, 'Missing password in query params', true);
-		return;
-	}
-	userLogin.password = req.query.password;
 	var usersCollection = req.db.collection('users');
 	usersCollection.find({username:userLogin.username},{name:1, rights:1, username:1, password:1}).toArray(function(err, users){
 		if(err){
@@ -61,10 +58,11 @@ exports.login = function(req, res){
 			if(users.length == 0){
 				sendError(req, res, 400, 'usernameInvalid', true, "username doesnt exist in database");
 				return;
-			}else if(users.length != 1){
-				sendError(req, res, 500, "users number is: " + users.length + ", expedted 1", true);
-				return;
 			}
+			// else if(users.length != 1){
+			// 	sendError(req, res, 500, "users number is: " + users.length + ", expedted 1", true);
+			// 	return;
+			// }
 			req.user = users[0];
 			if(req.user.password == userLogin.password){
 				var tokensCollection = req.db.collection('currentTokens');
@@ -235,6 +233,7 @@ exports.newUser = function(req, res){
 			}
 		});
 	}else{
+		// TODO disallow usernames that already exist - error: "Username already exists", 401
 		newUserProfile.rights = newUserRights;
 		var usersCollection = req.db.collection('users');
 		usersCollection.insert(newUserProfile, function(err, result){
