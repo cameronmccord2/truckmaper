@@ -40,23 +40,13 @@ exports.getDbConnection = function(req, res, next){
 			var databaseUsed = {
 				name:req.query.useDatabase
 			};
-			// This functionality needs to be fixed, its not working and should be changed anyway, will limit users after first call
-			db.collection('databases').find(databaseUsed).toArray(function(err, entries){
+			db.collection('databases').insert(databaseUsed, function(err, result){
 				if(err){
-					sendError(req, res, 500, "error on find database name into blankDbs.databases", true);
+					sendError(req, res, 500, "error on insert database name into blankDbs.databases", true);
 					return;
 				}
-				if(entries.length != 0){
-					db.collection('databases').insert(databaseUsed, function(err, result){
-						if(err){
-							sendError(req, res, 500, "error on insert database name into blankDbs.databases", true);
-							return;
-						}
-						console.log("using database: " + req.query.useDatabase);
-						db.close();
-					});
-				}else
-					db.close();
+				console.log("using database: " + req.query.useDatabase);
+				db.close();
 			});
 		});
 	}else

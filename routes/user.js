@@ -59,10 +59,10 @@ exports.login = function(req, res){
 				sendError(req, res, 400, 'usernameInvalid', true, "username doesnt exist in database");
 				return;
 			}
-			// else if(users.length != 1){
-			// 	sendError(req, res, 500, "users number is: " + users.length + ", expedted 1", true);
-			// 	return;
-			// }
+			else if(users.length != 1){
+				sendError(req, res, 500, "users number is: " + users.length + ", expedted 1", true);
+				return;
+			}
 			req.user = users[0];
 			if(req.user.password == userLogin.password){
 				var tokensCollection = req.db.collection('currentTokens');
@@ -236,15 +236,25 @@ exports.newUser = function(req, res){
 		// TODO disallow usernames that already exist - error: "Username already exists", 401
 		newUserProfile.rights = newUserRights;
 		var usersCollection = req.db.collection('users');
-		usersCollection.insert(newUserProfile, function(err, result){
-			if(err){
-				sendError(req, res, 500, "error insert new user profile to db" + err, true);
-			}else{
-				res.send(200, 'newUserCreateSuccess, ' + newUserProfile._id);
-				console.log('newUserCreateSuccess');
+		usersCollection.find({username:newUserProfile.username},{username:1}).toArray(function(err, users){
+			if(err)
+				sendError(req, res, 400,"error on find username method", true);
+			else{
+				if(users.length == 0){
+					usersCollection.insert(newUserProfile, function(err, result){
+						if(err){
+							sendError(req, res, 500, "error insert new user profile to db" + err, false);
+						}else{
+							res.send(200, 'newUserCreateSuccess, ' + newUserProfile._id);
+							console.log('newUserCreateSuccess');
+						}
+						req.db.close();
+						res.end();
+					});
+				}
+				else
+					sendError(req, res, 401, "Username already exists");
 			}
-			req.db.close();
-			res.end();
 		});
 	}
 }
@@ -252,6 +262,14 @@ exports.newUser = function(req, res){
 exports.doesUsernameExist = function(req, res){
 	if(req.query.username == undefined || req.query.username == null || req.query.username == ''){
 		sendError(req, res, 400, 'Missing username', true);
+		return;
+	}
+	if(req.query.username.length < 5){
+		sendError(req, res, 400, 'Username too short, should be more than 5', true);
+		return;
+	}
+	if(req.query.username.length >= 20){
+		sendError(req, res, 400, 'Username too long, should be less than 20', true);
 		return;
 	}
 	var username = req.query.username;
