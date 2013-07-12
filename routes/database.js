@@ -10,7 +10,7 @@ var nodeSessionId = Math.floor(Math.random()*10000);
 // webServer1 - myWebServers - 54.225.66.110 - cameronmccord3@gmail.com - 2759-9812-7528
 // nodeServer1 - cam4UbuntuKey - 54.214.238.10 - cameronmccord4@gmail.com - 5993-7832-3978
 // mongodbNode1 - cluster-keypair - 54.214.247.68 - cameronmccord5@gmail.com - 4751-2487-5947
-var url = "mongodb://54.214.247.68:27017/serverTester";
+var url = "mongodb://54.214.247.68:27017/";
 console.log("Mongo url: " + url);
 // End mongodb required stuff
 
@@ -28,9 +28,42 @@ var sendError = function(req, res, status, message, closeAndEnd, consoleLogSpeci
 }
 
 exports.getDbConnection = function(req, res, next){
-	Db.connect(url,function(err,db){
+	console.log("asdfasdfasdf")
+	var newUrl = url;
+	if(req.query.useDatabase != undefined){
+		newUrl += req.query.useDatabase;
+		Db.connect(url + 'blankDbs', function(err, db){
+			if(err){
+				sendError(req, res, 500,"error connecting to db" + err, true);
+				return;
+			}
+			var databaseUsed = {
+				name:req.query.useDatabase
+			};
+			// This functionality needs to be fixed, its not working and should be changed anyway, will limit users after first call
+			db.collection('databases').find(databaseUsed).toArray(function(err, entries){
+				if(err){
+					sendError(req, res, 500, "error on find database name into blankDbs.databases", true);
+					return;
+				}
+				if(entries.length != 0){
+					db.collection('databases').insert(databaseUsed, function(err, result){
+						if(err){
+							sendError(req, res, 500, "error on insert database name into blankDbs.databases", true);
+							return;
+						}
+						console.log("using database: " + req.query.useDatabase);
+						db.close();
+					});
+				}else
+					db.close();
+			});
+		});
+	}else
+		newUrl += 'serverTester';
+	Db.connect(newUrl, function(err, db){
 		if(err){
-			sendError(req, res, 500,"error connecting to db" + err, false);
+			sendError(req, res, 500,"error connecting to db" + err, true);
 			return;
 		}
 		req.db = db;
@@ -52,14 +85,12 @@ exports.endResponse = function(req, res, next){
 
 exports.getUserFromToken = function(req, res, next){
 	var tokenCollection = req.db.collection('currentTokens');
-	// console.log(req.query.token)
-	tokenCollection.find({}, function(err, tokens){
+	tokenCollection.find({}).toArray(function(err, tokens){
 		if(err)
 			sendError(req, res, 500, "error on find token method", true);
 		else{
-			console.log(tokens)
 			var usersCollection = req.db.collection('users');
-			usersCollection.find({_id:ObjectId(tokens[0].userId)}, function(err, users){
+			usersCollection.find({_id:ObjectId(tokens[0].userId.toString())}).toArray(function(err, users){
 				if(err)
 					sendError(req, res, 500, "error on find user method", true);
 				else{
