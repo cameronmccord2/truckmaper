@@ -75,23 +75,29 @@ exports.endResponse = function(req, res, next){
 
 exports.getUserFromToken = function(req, res, next){
 	var tokenCollection = req.db.collection('currentTokens');
-	tokenCollection.find({}).toArray(function(err, tokens){
+	tokenCollection.find({token:req.query.token}).toArray(function(err, tokens){
 		if(err)
 			sendError(req, res, 500, "error on find token method", true);
 		else{
-			var usersCollection = req.db.collection('users');
-			usersCollection.find({_id:ObjectId(tokens[0].userId.toString())}).toArray(function(err, users){
-				if(err)
-					sendError(req, res, 500, "error on find user method", true);
-				else{
-					if(users.length != 1)
-						sendError(req, res, 500, 'incorrect number of users found: ' + users.length, true);
+			if(tokens.length == 0){
+				sendError(req, res, 401, "Token does not exist", true);
+			}else if(tokens.length != 1){
+				sendError(req, res, 500, "Multiple identical tokens found, fix that", true);
+			}else{
+				var usersCollection = req.db.collection('users');
+				usersCollection.find({_id:ObjectId(tokens[0].userId.toString())}).toArray(function(err, users){
+					if(err)
+						sendError(req, res, 500, "error on find user method", true);
 					else{
-						req.user = users[0];
-						next();
+						if(users.length != 1)
+							sendError(req, res, 500, 'incorrect number of users found: ' + users.length, true);
+						else{
+							req.user = users[0];
+							next();
+						}
 					}
-				}
-			});
+				});
+			}
 		}
 	});
 }

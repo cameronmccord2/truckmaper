@@ -53,6 +53,13 @@ var newAttributeObject = function(key, value){
 	return {key:key, value:value};
 }
 
+var checkForInvalidFields = function(object, field){
+	if(object[field] == undefined || object[field] == null)
+		return true;
+	else
+		return false;
+}
+
 var accessType = {
 	create:100,
 	editDetails:200,
@@ -74,7 +81,8 @@ var sendError = function(req, res, status, message, closeAndEnd, consoleLogSpeci
 }
 
 exports.newItem = function(req, res){
-	if(!req.user.rights.newItem)
+	//uses: req.body.attributes.*, req.body.locationCode, req.body.longitude, req.body.latitude, req.user.*, req.body.deviceType
+	if(!req.user.rights.newItem)// lets not do right right now
 		sendError(req, res, 401, 'insufficientRights', true);
 	else{
 		// do an area check here
@@ -90,34 +98,48 @@ exports.newItem = function(req, res){
 		// }else{
 		// 	// area provided
 		// }
-		var attributeArray = new Array();
-		if(req.body.attributes == undefined || req.body.attributes == null || req.body.attributes == ''){
+		if(checkForInvalidFields(req.body, 'attributes'))
+			sendError(req, res, 400, "Mising token: attributes");
+		else if(checkForInvalidFields(req.body, 'locationCode'))
+			sendError(req, res, 400, "Mising token: locationCode");
+		else if(checkForInvalidFields(req.body, 'longitude'))
+			sendError(req, res, 400, "Mising token: longitude");
+		else if(checkForInvalidFields(req.body, 'latitude'))
+			sendError(req, res, 400, "Mising token: latitude");
+		else if(checkForInvalidFields(req.body, 'deviceType'))
+			sendError(req, res, 400, "Mising token: deviceType");
+		else if(checkForInvalidFields(req, 'user'))
+			sendError(req, res, 400, "Mising user, fix that");
+		else{
+			var attributeArray = new Array();
 			for (var i = req.body.attributes.length - 1; i >= 0; i--) {
-				if(req.body.attributes[i].key == undefined || req.body.attributes[i].key == null || req.body.attributes[i].key == '' || req.body.attributes[i].value == undefined || req.body.attributes[i].value == null || req.body.attributes[i].value == ''){
+				if(req.body.attributes[i].key == undefined || req.body.attributes[i].key == null || req.body.attributes[i].key == '' || req.body.attributes[i].value == undefined || req.body.attributes[i].value == null || req.body.attributes[i].value == '')
 					console.log('null attribute or key found', req.body.attributes[i]);
-				}else{
+				else
 					attributeArray.push(newAttributeObject(req.body.attributes[i].key, req.body.attributes[i].value));
-				}
-			};
+			};	
+			var newItem = newItemObject(attributeArray, req.body.locationCode, "no area yet", newLocationObject("Point", req.body.longitude, req.body.latitude, req.user._id), newItemHistoryEntryObject(req.user._id, req.body.deviceType, accessType.create));
+			var itemCollection = req.db.collection('items');
+			itemsCollection.insert(newItem, function(err, result){
+				if(err)
+					sendError(req, res, 500, "error on insert new item method", false);
+				else
+					res.json(200, newItem);
+				req.db.close();
+				res.end();
+			});
 		}
-		var newItem = newItemObject(attributeArray, req.body.locationCode, "no area yet", newLocationObject("Point", req.body.longitude, req.body.latitude,
-			req.user._id), newItemHistoryEntryObject(req.user._id, req.body.deviceType, accessType.create));
-		var itemCollection = req.db.collection('items');
-		itemsCollection.insert(newItemObject, function(err, result){
-			if(err)
-				sendError(req, res, 500, "error on insert new item method", false);
-			else
-				res.json(newItemObject);
-			req.db.close();
-			res.end();
-		});
 	}
 }
 
-exports.editItem = function(req, res){
+exports.editItem = function(req, res){// set up for different types of edits: location, nonLocation
 	if(!req.user.rights.editItem)
 		sendError(req, res, 401, 'insufficientRights', true);
 	else{
+		if(checkForInvalidFields(req.query, 'typeOfEdit')){
+			sendError(req, res, 400, "Missing token: typeOfEdit", true);
+			return;
+		}
 		var itemsCollection = req.db.collection('items');
 		var boolValue = req.get('fieldData') == "true"? true : false;
 		var theSet;
@@ -176,25 +198,28 @@ exports.editItem = function(req, res){
 	}
 }
 
-exports.editHistory = function(req, res){
-	var checkForRights = new Array();
-	checkForRights.push('editHistory');
-	for(right in checkForRights){
-		if(!req.user.rights[right]){
-			sendError(req, res, 401, 'insufficientRights', true);
-			return;
-		}
-	}
-	var itemsCollection = req.db.collection('items');
-	itemsCollection.find(findParams,whichFields).toArray(function(err, items){
-		if(err)
-			sendError(req, res, 400, "error on find user method", false);
-		else
-			res.json(items);
-		req.db.close();
-		res.end();
-	});
-}
+// exports.editHistory = function(req, res){
+// 	var checkForRights = new Array();
+// 	checkForRights.push('editHistory');
+// 	for(right in checkForRights)
+// 		if(!req.user.rights[right]){
+// 			sendError(req, res, 401, 'insufficientRights', true);
+// 			return;
+// 		}
+// 	if(checkForInvalidFields(req.query, 'itemId'))
+// 		sendError(req, res, 400, 'Missing token: itemId', true);
+// 	else{
+// 		var itemsCollection = req.db.collection('items');
+// 		itemsCollection.find({_id:ObjectId(req.query.itemId.toString())}, whichFields).toArray(function(err, items){
+// 			if(err)
+// 				sendError(req, res, 400, "error on find user method", false);
+// 			else
+// 				res.json(items);
+// 			req.db.close();
+// 			res.end();
+// 		});
+// 	}
+// }
 
 var itemsSimple = {
 
@@ -204,7 +229,9 @@ var itemsComplex = {
 	edits:0
 };
 
-var allFields = {};
+var allFields = {};// update this one to not give entire history
+
+var allAndHistoryFields = {};
 
 var editHistoryFields = {
 	edits:1
@@ -214,42 +241,49 @@ exports.items = function(req, res){
 	var whatTypeOfRequest;
 	var findParams;
 	var checkForRights = new Array();
-	if(req.body.id != undefined && req.body.id != null && req.body.id != ''){
+	if(req.query.id != undefined && req.query.id != null && req.query.id != ''){
 		whatTypeOfRequest = 'specific';
-		findParams = {_id:ObjectId(req.body.id)};
+		findParams = {_id:ObjectId(req.query.id.toString())};
 	}else{
 		whatTypeOfRequest = 'all';
 		checkForRights.push('allItems');
-		findParams = {companyId:req.user.companyId};
+		//findParams = {companyId:req.user.companyId.toString()};
+		findParams = {};
 	}
 	var whichFields;
-	if(req.body.data != undefined && req.body.data != null && req.body.data != ''){
-		if(req.body.data == 'location'){
+	if(req.query.data != undefined && req.query.data != null && req.query.data != ''){
+		if(req.query.data == 'location'){
 			checkForRights.push('getLocation');
 			whichFields = locationItemFields;
-		}else if(req.body.data == 'simple'){
+		}else if(req.query.data == 'simple'){
 			checkForRights.push('itemsSimple');
 			whichFields = simpleItemFields;
-		}else if(req.body.data == 'complex'){
+		}else if(req.query.data == 'allAndHistory'){
+			checkForRights.push('allAndHistory');
+			whichFields = allAndHistoryFields;
+		}else if(req.query.data == 'all'){
+			checkForRights.push('all');
+			whichFields = allFields;
+		}else if(req.query.data == 'complex'){
 			checkForRights.push('itemsComplex');
 			whichFields = complexItemFields;
-		}else if(req.body.data == 'full'){
+		}else if(req.query.data == 'full'){
 			checkForRights.push('itemsComplex');
 			checkForRights.push('editHistory');
 			whichFields = allFields;
-		}else if(req.body.data == 'editHistory'){
+		}else if(req.query.data == 'editHistory'){
 			checkForRights.push('editHistory');
 			whichFields = editHistoryFields;
 		}
 	}
-	for(right in checkForRights){
-		if(!req.user.rights[right]){
-			sendError(req, res, 401, 'insufficientRights', true);
-			return;
-		}
-	}
+	// for(right in checkForRights){
+	// 	if(!req.user.rights[right]){
+	// 		sendError(req, res, 401, 'insufficientRights', true);
+	// 		return;
+	// 	}
+	// }
 	var itemsCollection = req.db.collection('items');
-	itemsCollection.find(findParams,whichFields).toArray(function(err, items){
+	itemsCollection.find(findParams, whichFields).toArray(function(err, items){
 		if(err)
 			sendError(req, res, 400, "error on find item method", false);
 		else
@@ -258,3 +292,27 @@ exports.items = function(req, res){
 		res.end();
 	});
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

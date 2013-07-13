@@ -160,33 +160,35 @@ var ItemMaperApp = function() {
         self.app.get('/dbAdmin/clearTokens', dbAdmin.clearTokens);
         self.app.get('/dbAdmin/clearUsers', dbAdmin.clearUsers);
         //non-security paths
-        self.app.all('/map1/*', database.getDbConnection);
-        self.app.get('/map1/user/new', user.newUser);
-        self.app.get('/map1/doesUsernameExist', user.doesUsernameExist);
+        self.app.all('/map/*', database.getDbConnection);
+        self.app.get('/map/user/new', user.newUser);
+        self.app.get('/map/doesUsernameExist', user.doesUsernameExist);
         //self.app.put('/map/company/new', company.newCompany);
-        self.app.get('/map1/user/login', user.login);
-        self.app.get('/map1/user/logout', user.logout);
+        self.app.get('/map/user/login', user.login);
+        
 
         //security checkers
-        self.app.all('/map/*', database.getDbConnection);
+        // self.app.all('/map/*', database.getDbConnection);
         self.app.all('/map/*', authentication.checkForToken);
         self.app.all('/map/*', database.getUserFromToken);
 
         //security-restricted paths
+        self.app.get('/map/dumb', authentication.dumb);
         self.app.get('/map/user/data', user.userData);
         self.app.get('/map/company/info', company.getCompanyInfo);
         self.app.put('/map/company/edit', company.editCompany);
         self.app.get('/map/location/ios', location.getLocationIos);
         self.app.get('/map/location/android', location.getLocationAndroid);
         self.app.get('/map/location/website', location.getLocationWebsite);
-        self.app.get('/map/item/new', item.newItem);
+        self.app.put('/map/item/new', item.newItem);
         self.app.get('/map/item', item.items);
         self.app.put('/map/item/edit', item.editItem);
 
         self.app.post('/map/location/ios', location.updateLocationIos);
         self.app.post('/map/location/android', location.updateLocationAndroid);
         self.app.post('/map/location/website', location.updateLocationWebsite);
-        self.app.post('/map/user/logout', user.logout);
+        // self.app.post('/map/user/logout', user.logout);
+        self.app.get('/map/user/logout', user.logout);
         self.app.options('*', function(req, res){
             console.log("options hit")
             req.db.close();

@@ -3,12 +3,12 @@ var ObjectId = require('mongodb').ObjectID;
 var fs = require('fs');
 // End includes
 
-var logLoginLogoutAttempt = function(userId, attempt, req){
+var logLoginLogoutAttempt = function(userId, attempt, req, res){
 	var usersCollection = req.db.collection('users');
 	console.log(userId.toString().length)
-	usersCollection.update({_id:ObjectId(userId)}, {$push:{loginHistory:attempt}}, function(err,result){
+	usersCollection.update({_id:ObjectId(userId.toString())}, {$push:{loginHistory:attempt}}, function(err,result){
 		if(err){
-			console.log("db error pushing login attempt");
+			sendError(req, res, 500, 'Error trying to logLoginLogoutAttempt', true);
 			return 'error';
 		}else{
 			console.log("login attempt logged");
@@ -26,11 +26,19 @@ var sendError = function(req, res, status, message, closeAndEnd, consoleLogSpeci
 	}
 }
 
+var checkForInvalidFields = function(object, field){
+	if(object[field] == undefined || object[field] == null)
+		return true;
+	else
+		return false;
+}
+
 var generateToken = function(){
     // this Math.floor(Math.random()*100000000000000000000000000000000).toString(36) generates a 22 digit key 86% of the time
     // (new Date()).getTime().toString(36) generates a 8 digit key
+    // keys expire in one hour - 3600000 miliseconds
     do{
-    	var token = Math.floor(Math.random()*1000000000000000000000000000000000).toString(36) + (new Date()).getTime().toString(36);
+    	var token = Math.floor(Math.random()*1000000000000000000000000000000000).toString(36) + ((new Date()).getTime() + 3600000).toString(36);
     }while(token.length != 30);
     return token;
 }
@@ -48,6 +56,8 @@ exports.login = function(req, res){
 			userLogin[loginKeysRequired[key]] = req.query[loginKeysRequired[key]];
 		}
 	};
+	if(testUsername(req, res, req.query.username) == 'dontContinue')
+		return;
 	var usersCollection = req.db.collection('users');
 	usersCollection.find({username:userLogin.username},{name:1, rights:1, username:1, password:1}).toArray(function(err, users){
 		if(err){
@@ -73,32 +83,35 @@ exports.login = function(req, res){
 				};
 				tokensCollection.insert(tokenData, function(err, result){
 					if(err){
-						sendError(req, res, 400, "error on find username method", true);
+						sendError(req, res, 400, "error on insert token into currentTokens method", true);
 						return;
 					}
+					var resultData = {
+						'token':tokenData.token,
+						'name': req.user.name
+					};
+					loginAttempt = {
+						'when':(new Date()).getTime(),
+						'type':'login',
+						'success':true
+					};
+					console.log(req.user)
+					if(logLoginLogoutAttempt(req.user._id, loginAttempt, req, res) == 'error')
+						return;
+					res.json(resultData);
+					req.db.close();
+					res.end();
 				});
-				var resultData = {
-					'token':tokenData.token,
-					'name': req.user.name
-				};
-				res.json(resultData);
-				loginAttempt = {
-					'when':(new Date()).getTime(),
-					'type':'login',
-					'success':true
-				};
 			}else{
-				sendError(req, res, 400, 'invalidPassword', false);
 				loginAttempt = {
 					'when':(new Date()).getTime(),
 					'type':'login',
 					'success':false
 				};
+				if(logLoginLogoutAttempt(req.user._id, loginAttempt, req, res) == 'error')
+					return;
+				sendError(req, res, 400, 'invalidPassword', true);
 			}
-			console.log(req.user._id)
-			logLoginLogoutAttempt(req.user._id.toString(), loginAttempt, req);
-			req.db.close();
-			res.end();
 		}
 	});
 }
@@ -110,18 +123,23 @@ exports.logout = function(req, res){
 	}
 	var logoutAttempt;
 	var tokenCollection = req.db.collection('currentTokens');
-	tokenCollection.find({_id:ObjectId(req.token)}, function(err, tokens){
+	console.log(req.query.token);
+	console.log("just gave token");
+	tokenCollection.find({token:req.query.token}, function(err, tokens){
 		if(err){
 			sendError(req, res, 500, "error on find token for logout", true);
 			return;
 		}
 		if(tokens.length == 0){
-			loginAttempt = {
+			logoutAttempt = {
 				'when':(new Date()).getTime(),
 				'type':'logout',
 				'success':false
 			};
-			sendError(req, res, 401, 'notLoggedIn', false, "token does not exist");
+			if(logLoginLogoutAttempt(req.user._id, logoutAttempt, req, res) == 'error')
+				return;
+			sendError(req, res, 401, 'notLoggedIn', true, "token does not exist");
+			return;
 		}else if(tokens.length > 1){
 			sendError(req, res, 500, 'tokens are messed up', true);
 			return;
@@ -131,17 +149,18 @@ exports.logout = function(req, res){
 				'type':'logout',
 				'success':true
 			};
+			if(logLoginLogoutAttempt(req.user._id, logoutAttempt, req, res) == 'error')
+				return;
 			tokenCollection.remove({token:req.query.token},{}, function(err, result){
 				if(err){
 					sendError(req, res, 500, "error on remove token for logout", true);
 					return;
 				}
-				console.log('token removed');
-			});// remove token from active tokens
+				res.send(200, "logged out");
+				req.db.close();
+				res.end();
+			});
 		}
-		logLoginLogoutAttempt(req.user._id, loginAttempt, req);
-		req.db.close();
-		res.end();
 	});
 }
 
@@ -152,6 +171,25 @@ exports.userData = function(req, res){
 	res.end();
 }
 
+var testUsername = function(req, res, username){
+	if(username == undefined || req.query.username == null || req.query.username == ''){
+		sendError(req, res, 400, 'Missing username', true);
+		return 'dontContinue';
+	}
+	if(username.length < 5){
+		sendError(req, res, 400, 'Username too short, should be more than 5', true);
+		return 'dontContinue';
+	}
+	if(username.length >= 20){
+		sendError(req, res, 400, 'Username too long, should be less than 20', true);
+		return 'dontContinue';
+	}
+	if(!isNaN(username.substr(0,1))){
+		sendError(req, res, 400, 'Username cant start with a number', true);
+		return 'dontContinue';
+	}
+}
+
 var newUserKeysRequired = [
 	'firstName', 'lastName', 'email', 'username', 'password'
 ];
@@ -160,15 +198,15 @@ var newUserKeysOptional = [
 ];
 
 var newUserRights = {
-	'editItem':false,
-	'newItem':false,
-	'getLocation':false,
-	'setLocation':false,
-	'editCompany':false,
-	'itemsSimple':false,
-	'itemsComplex':false,
-	'allItems':false,
-	'editHistory':false
+	'editItem':true,
+	'newItem':true,
+	'getLocation':true,
+	'setLocation':true,
+	'editCompany':true,
+	'itemsSimple':true,
+	'itemsComplex':true,
+	'allItems':true,
+	'editHistory':true
 };
 
 exports.newUser = function(req, res){
@@ -188,6 +226,8 @@ exports.newUser = function(req, res){
 		else
 			newUserProfile[newUserKeysOptional[key]] = req.query[newUserKeysOptional[key]];
 	};
+	if(testUsername(req, res, req.query.username) == 'dontContinue')
+		return;
 	newUserProfile['createdDate'] = (new Date()).getTime();
 	console.log(newUserProfile)
 	if(newUserProfile.companyId != ''){
@@ -214,7 +254,7 @@ exports.newUser = function(req, res){
 									'createdDate':newUserProfile.createdDate,
 									'id':newUserProfile._id
 								};
-								companiesCollection.update({_id:ObjectId(companies[0]._id)}, {$push:{users:newUserForCompany}}, function(err, result1){
+								companiesCollection.update({_id:ObjectId(companies[0]._id.toString())}, {$push:{users:newUserForCompany}}, function(err, result1){
 									if(err){
 										sendError(req, res, 500, "error update newUserForCompany to db" + err, false);
 									}else{
@@ -233,7 +273,6 @@ exports.newUser = function(req, res){
 			}
 		});
 	}else{
-		// TODO disallow usernames that already exist - error: "Username already exists", 401
 		newUserProfile.rights = newUserRights;
 		var usersCollection = req.db.collection('users');
 		usersCollection.find({username:newUserProfile.username},{username:1}).toArray(function(err, users){
@@ -260,23 +299,13 @@ exports.newUser = function(req, res){
 }
 
 exports.doesUsernameExist = function(req, res){
-	if(req.query.username == undefined || req.query.username == null || req.query.username == ''){
-		sendError(req, res, 400, 'Missing username', true);
+	if(testUsername(req, res, req.query.username) == 'dontContinue')
 		return;
-	}
-	if(req.query.username.length < 5){
-		sendError(req, res, 400, 'Username too short, should be more than 5', true);
-		return;
-	}
-	if(req.query.username.length >= 20){
-		sendError(req, res, 400, 'Username too long, should be less than 20', true);
-		return;
-	}
 	var username = req.query.username;
 	var usersCollection = req.db.collection('users');
 	usersCollection.find({username:username},{username:1}).toArray(function(err, users){
 		if(err)
-			sendError(req, res, 400,"error on find username method", false);
+			sendError(req, res, 400, "error on find username method" + err, false);
 		else{
 			console.log(users);
 			if(users.length == 0)
