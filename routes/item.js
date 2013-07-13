@@ -32,9 +32,12 @@ var truckLocationStatuses = [
 	{'num':4, 'word':'inShop', 'realWord':'In the shop'}
 ];
 
-var newItemObject = {
-	name:'',
-	location: new Array()
+var newItemObjectAttributes = function(){
+	return {
+		location: new Array(),
+		attributes: new Array(),
+		history: new Array()
+	}
 };
 
 var newLocationObject = function(typeOfLocation, longitude, latitude, who){
@@ -45,12 +48,30 @@ var newItemHistoryEntryObject = function(who, how, typeOfAccess){
 	return {who:who, how:how, typeOfAccess:typeOfAccess, when:(new Date()).getTime()};
 }
 
-var newItemObject = function(attributes, locationCode, area, location, historyEntry){
-	return {attributes:attributes, locationCode:locationCode, area:area, location:[location], history:[historyEntry]};
+var newItemObject = function(attributes, location, history){
+	var item = newItemObjectAttributes();
+	item.attributes.push(attributes);
+	item.location.push(location);
+	item.history.push(history);
+	return item;
 }
 
 var newAttributeObject = function(key, value){
 	return {key:key, value:value};
+}
+
+var newAttributeArray = function(attributes){
+	var attributeArray = new Array();
+	for (var i = attributes.length - 1; i >= 0; i--) {
+		if(attributes[i].key == undefined || attributes[i].key == null || attributes[i].key == ''){
+			sendError(req, res, 400, 'Invalid attribute key found', true);
+			return 'error';
+		}else if(attributes[i].value == undefined || attributes[i].value == null){
+			sendError(req, res, 400, 'Invalid attribute value found for key: ' + attributes[i].key, true);
+			return 'error';
+		}else
+			attributeArray.push(newAttributeObject(req.body.attributes[i].key, req.body.attributes[i].value));
+	};
 }
 
 var checkForInvalidFields = function(object, field){
@@ -85,19 +106,6 @@ exports.newItem = function(req, res){
 	if(!req.user.rights.newItem)// lets not do right right now
 		sendError(req, res, 401, 'insufficientRights', true);
 	else{
-		// do an area check here
-		// if(req.body.area == undefined || req.body.area == null || req.body.area == '')
-		// 	var companiesCollection = req.db.collection('companies');
-		// 	companiesCollection.find({}, companyToAreaFields, function(err, companies){
-		// 		if(err){
-		// 			sendError(req, res, 400, "error on find method for area with lat: " + req.body.latitude + " and long: " + req.body.longitude, true);
-		// 			return;
-		// 		}
-		// 		var area = companies;
-		// 	});
-		// }else{
-		// 	// area provided
-		// }
 		if(checkForInvalidFields(req.body, 'attributes'))
 			sendError(req, res, 400, "Mising token: attributes");
 		else if(checkForInvalidFields(req.body, 'locationCode'))
@@ -111,14 +119,11 @@ exports.newItem = function(req, res){
 		else if(checkForInvalidFields(req, 'user'))
 			sendError(req, res, 400, "Mising user, fix that");
 		else{
-			var attributeArray = new Array();
-			for (var i = req.body.attributes.length - 1; i >= 0; i--) {
-				if(req.body.attributes[i].key == undefined || req.body.attributes[i].key == null || req.body.attributes[i].key == '' || req.body.attributes[i].value == undefined || req.body.attributes[i].value == null || req.body.attributes[i].value == '')
-					console.log('null attribute or key found', req.body.attributes[i]);
-				else
-					attributeArray.push(newAttributeObject(req.body.attributes[i].key, req.body.attributes[i].value));
-			};	
-			var newItem = newItemObject(attributeArray, req.body.locationCode, "no area yet", newLocationObject("Point", req.body.longitude, req.body.latitude, req.user._id), newItemHistoryEntryObject(req.user._id, req.body.deviceType, accessType.create));
+			var attributeArray = newAttributeArray(req.body.attributes);
+			if(attributeArray == 'error')
+				return;
+			// this needs to be checked
+			var newItem = newItemObject(attributeArray, newLocationObject("Point", req.body.longitude, req.body.latitude, req.user._id), newItemHistoryEntryObject(req.user._id, req.body.deviceType, accessType.create));
 			var itemCollection = req.db.collection('items');
 			itemsCollection.insert(newItem, function(err, result){
 				if(err)
@@ -132,6 +137,15 @@ exports.newItem = function(req, res){
 	}
 }
 
+var editTypes = {
+	location:{
+
+	},
+	nonLocation:{
+
+	}
+};
+
 exports.editItem = function(req, res){// set up for different types of edits: location, nonLocation
 	if(!req.user.rights.editItem)
 		sendError(req, res, 401, 'insufficientRights', true);
@@ -139,62 +153,65 @@ exports.editItem = function(req, res){// set up for different types of edits: lo
 		if(checkForInvalidFields(req.query, 'typeOfEdit')){
 			sendError(req, res, 400, "Missing token: typeOfEdit", true);
 			return;
-		}
-		var itemsCollection = req.db.collection('items');
-		var boolValue = req.get('fieldData') == "true"? true : false;
-		var theSet;
-		if(req.get('whatField') == "year"){
-			theSet = {year:parseInt(req.get('fieldData'))};
-		}else if(req.get('whatField') == "qrCode"){
-			theSet = {qrCode:parseInt(req.get('fieldData'))};
-		}else if(req.get('whatField') == "miles"){
-			theSet = {miles:req.get('fieldData')};
-		}else if(req.get('whatField') == "price"){
-			theSet = {price:parseInt(req.get('fieldData'))};
-		}else if(req.get('whatField') == "stockNumber"){
-			theSet = {stockNumber:parseInt(req.get('fieldData'))};
-		}else if(req.get('whatField') == "make"){
-			theSet = {make:req.get('fieldData')};
-		}else if(req.get('whatField') == "model"){
-			theSet = {model:req.get('fieldData')};
-		}else if(req.get('whatField') == "color"){
-			theSet = {color:req.get('fieldData')};
-		}else if(req.get('whatField') == "engine"){
-			theSet = {engine:req.get('fieldData')};
-		}else if(req.get('whatField') == "transmission"){
-			theSet = {transmission:req.get('fieldData')};
-		}else if(req.get('whatField') == "notes"){
-			theSet = {notes:req.get('fieldData')};
-		}else if(req.get('whatField') == "vin"){
-			theSet = {vin:req.get('fieldData')};
-		}else if(req.get('whatField') == "engineModel"){
-			theSet = {engineModel:req.get('fieldData')};
-		}else if(req.get('whatField') == "horsepower"){
-			theSet = {horsepower:req.get('fieldData')};
-		}else if(req.get('whatField') == "def"){
-			theSet = {def:req.get('fieldData')};
-		}else if(req.get('whatField') == "axleRatio"){
-			theSet = {axleRatio:req.get('fieldData')};
-		}else if(req.get('whatField') == "status"){
-			theSet = {status:parseInt(req.get('fieldData'))};
-		}else if(req.get('whatField') == "type"){
-			theSet = {type:parseInt(req.get('fieldData'))};
-		}else if(req.get('whatField') == "locationStatus"){
-			theSet = {locationStatus:parseInt(req.get('fieldData'))};
-		}else if(req.get('whatField') == "location"){
-			theSet = {location:{type:'Point', coordinates:[req.get('longitude'), req.get('latitude')]}};
 		}else{
-			sendError(req, res, 400, "whatField is invalid: " + req.get('whatField'), true);
-			return;
+			var thePush;
+			if(req.query.typeOfEdit == 'location'){
+				if(checkForInvalidFields(req.body, 'longitude')){
+					sendError(req, res, 400, "Missing token: longitude", true);
+					return;
+				}else if(checkForInvalidFields(req.body, 'latitude')){
+					sendError(req, res, 400, "Missing token: latitude", true);
+					return;
+				}else
+					thePush = {location:newLocationObject('Point', req.body.longitude, req.body.latitude, req.user._id)};
+			}else if(req.query.typeOfEdit == 'nonLocation'){
+				if(checkForInvalidFields(req.body, 'attributes')){
+					sendError(req, res, 400, "Missing token: attributes", true);
+					return;
+				}else
+					thePush = {attributes:newAttributeArray(req.body.attributes)};
+			}else{
+				sendError(req, res, 400, "Invalid edit type", true);
+				return;
+			}
+			if(checkForInvalidFields(req, 'user')){
+				sendError(req, res, 500, "Missing req.user, fix that", true);
+				return;
+			}else if(checkForInvalidFields(req.user, '_id')){
+				sendError(req, res, 500, "Missing req.user._id, fix that", true);
+				return;
+			}else if(checkForInvalidFields(req.body, 'deviceType')){
+				sendError(req, res, 500, "Missing req.body.deviceType", true);
+				return;
+			}else
+				thePush.history = newItemHistoryEntryObject(req.user._id, req.body.deviceType, accessType.create)
+			if(checkForInvalidFields(req.query, 'itemId')){
+				sendError(req, res, 400, "Missing token: itemId", true);
+				return;
+			}else{
+				var itemsCollection = req.db.collection('items');
+				itemsCollection.update({_id:ObjectId(req.query.itemId.toString())}, {$push:thePush}, function(err,result){
+					if(err)
+						sendError(req, res, 400, "error on find method for: " + req.get('whatField') + " with info: " + req.get('fieldData'), true);
+					else{
+						itemsCollection.find({_id:ObjectId(req.query.itemId.toString())}, allFields).toArray(function(err, items){
+							if(err)
+								sendError(req, res, 500, "error on find item method after update", false);
+							else{
+								if(items.length == 0)
+									sendError(req, res, 500, "Cant find item by _id that was just inserted", false);
+								else if(items.length != 1)
+									sendError(req, res, 500, items.length + " items were returned for a find item by _id method", false);
+								else
+									res.json(200, items[0]);
+								req.db.close();
+								res.end();
+							}
+						});
+					}
+				});
+			}
 		}
-		itemsCollection.update({_id:ObjectId(req.get('id'))}, {$set:theSet, $push:{edits:{edit:theSet, whenSet:(new Date()).getTime(), editedByWho:req.user._id}}}, function(err,result){
-			if(err)
-				sendError(req, res, 400, "error on find method for: " + req.get('whatField') + " with info: " + req.get('fieldData'), false);
-			else
-				res.send(200, result);
-			req.db.close();
-			res.end();
-		});
 	}
 }
 
@@ -233,48 +250,59 @@ var allFields = {};// update this one to not give entire history
 
 var allAndHistoryFields = {};
 
-var editHistoryFields = {
+var historyFields = {
 	edits:1
 };
 
-exports.items = function(req, res){
+exports.items = function(req, res){// adapt this for the 'all' call to not crash the machine becuase of ram use
 	var whatTypeOfRequest;
 	var findParams;
 	var checkForRights = new Array();
-	if(req.query.id != undefined && req.query.id != null && req.query.id != ''){
-		whatTypeOfRequest = 'specific';
-		findParams = {_id:ObjectId(req.query.id.toString())};
-	}else{
-		whatTypeOfRequest = 'all';
-		checkForRights.push('allItems');
-		//findParams = {companyId:req.user.companyId.toString()};
-		findParams = {};
+	if(checkForInvalidFields(req.query, 'type')){
+		sendError(req, res, 400, "Missing token: type", true);
+		return;
 	}
+	if(req.query.type == "byId"){
+		if(!checkForInvalidFields(req.query, 'itemId')){
+			sendError(req, res, 400, "Missing token: itemId");
+			return;
+		}else
+			findParams = {_id:ObjectId(req.query.itemId.toString())};
+	}else if(req.query.type == "byCode"){
+		if(!checkForInvalidFields(req.query, 'code')){
+			sendError(req, res, 400, "Missing token: code");
+			return;
+		}else
+			findParams = {code:req.query.code};// make sure pulling by code is working, currently it is not**************************
+	}else if(req.query.type == "all"){
+		checkForRights.push('allItems');
+		findParams = {};
+	}else{
+		sendError(req, res, 400, "Invalid type: " + req.query.type, true);
+		return;
+	}
+	if(checkForInvalidFields(req.query, 'whichFields')){
+		sendError(req, res, 400, "Missing token: whichFields", true);
+		return;
+	}
+
 	var whichFields;
-	if(req.query.data != undefined && req.query.data != null && req.query.data != ''){
-		if(req.query.data == 'location'){
-			checkForRights.push('getLocation');
-			whichFields = locationItemFields;
-		}else if(req.query.data == 'simple'){
-			checkForRights.push('itemsSimple');
-			whichFields = simpleItemFields;
-		}else if(req.query.data == 'allAndHistory'){
-			checkForRights.push('allAndHistory');
-			whichFields = allAndHistoryFields;
-		}else if(req.query.data == 'all'){
-			checkForRights.push('all');
-			whichFields = allFields;
-		}else if(req.query.data == 'complex'){
-			checkForRights.push('itemsComplex');
-			whichFields = complexItemFields;
-		}else if(req.query.data == 'full'){
-			checkForRights.push('itemsComplex');
-			checkForRights.push('editHistory');
-			whichFields = allFields;
-		}else if(req.query.data == 'editHistory'){
-			checkForRights.push('editHistory');
-			whichFields = editHistoryFields;
-		}
+	if(req.query.whichFields == 'location'){
+		checkForRights.push('getLocation');
+		whichFields = locationItemFields;
+	}else if(req.query.whichFields == 'allAndHistory'){
+		checkForRights.push('all');
+		checkForRights.push('history');
+		whichFields = allAndHistoryFields;
+	}else if(req.query.whichFields == 'all'){
+		checkForRights.push('all');
+		whichFields = allFields;
+	}else if(req.query.whichFields == 'history'){
+		checkForRights.push('history');
+		whichFields = historyFields;
+	}else{
+		sendError(req, res, 400, "Invalid whichFields: " + req.query.whichFields, true);
+		return;
 	}
 	// for(right in checkForRights){
 	// 	if(!req.user.rights[right]){
@@ -283,9 +311,10 @@ exports.items = function(req, res){
 	// 	}
 	// }
 	var itemsCollection = req.db.collection('items');
+	// check after this, not checked yet
 	itemsCollection.find(findParams, whichFields).toArray(function(err, items){
 		if(err)
-			sendError(req, res, 400, "error on find item method", false);
+			sendError(req, res, 500, "error on find item method", false);
 		else
 			res.json(items);
 		req.db.close();
