@@ -36,9 +36,14 @@ var newItemObjectAttributes = function(){
 	return {
 		location: new Array(),
 		attributes: new Array(),
-		history: new Array()
+		history: new Array(),
+		code: new Array()
 	}
 };
+
+var newCodeObject = function(code, howSet){
+	return {code:code, howSet:howSet, whenSet:(new Date()).getTime()};
+}
 
 var newLocationObject = function(typeOfLocation, longitude, latitude, who){
 	return {loc:{type:typeOfLocation, coordinates:[longitude, latitude], who:who, when:(new Date()).getTime()}};
@@ -48,8 +53,9 @@ var newItemHistoryEntryObject = function(who, how, typeOfAccess){
 	return {who:who, how:how, typeOfAccess:typeOfAccess, when:(new Date()).getTime()};
 }
 
-var newItemObject = function(attributes, location, history){
+var newItemObject = function(code, attributes, location, history){
 	var item = newItemObjectAttributes();
+	item.code.push(code);
 	item.attributes.push(attributes);
 	item.location.push(location);
 	item.history.push(history);
@@ -102,7 +108,7 @@ var sendError = function(req, res, status, message, closeAndEnd, consoleLogSpeci
 }
 
 exports.newItem = function(req, res){
-	//uses: req.body.attributes.*, req.body.locationCode, req.body.longitude, req.body.latitude, req.user.*, req.body.deviceType
+	//uses: req.body.attributes.*, req.body.code, req.body.locationCode, req.body.longitude, req.body.latitude, req.user.*, req.body.deviceType
 	if(!req.user.rights.newItem)// lets not do right right now
 		sendError(req, res, 401, 'insufficientRights', true);
 	else{
@@ -117,13 +123,21 @@ exports.newItem = function(req, res){
 		else if(checkForInvalidFields(req.body, 'deviceType'))
 			sendError(req, res, 400, "Mising token: deviceType");
 		else if(checkForInvalidFields(req, 'user'))
-			sendError(req, res, 400, "Mising user, fix that");
+			sendError(req, res, 500, "Mising user, fix that");
+		else if(checkForInvalidFields(req.body, 'code'))
+			sendError(req, res, 400, "Missing token: code");
+		else if(checkForInvalidFields(req.body, 'howSet'))
+			sendError(req, res, 400, "Missing token: howSet");
+		else if(checkForInvalidFields(req, 'user'))
+			sendError(req, res, 500, "Missing req.user, fix that");
+		else if(checkForInvalidFields(req.user, '_id'))
+			sendError(req, res, 500, "Missing req.user._id, fix that");
 		else{
 			var attributeArray = newAttributeArray(req.body.attributes);
 			if(attributeArray == 'error')
 				return;
 			// this needs to be checked
-			var newItem = newItemObject(attributeArray, newLocationObject("Point", req.body.longitude, req.body.latitude, req.user._id), newItemHistoryEntryObject(req.user._id, req.body.deviceType, accessType.create));
+			var newItem = newItemObject(newCodeObject(req.body.code, req.body.howSet), attributeArray, newLocationObject("Point", req.body.longitude, req.body.latitude, req.user._id), newItemHistoryEntryObject(req.user._id, req.body.deviceType, accessType.create));
 			var itemCollection = req.db.collection('items');
 			itemsCollection.insert(newItem, function(err, result){
 				if(err)
@@ -154,26 +168,7 @@ exports.editItem = function(req, res){// set up for different types of edits: lo
 			sendError(req, res, 400, "Missing token: typeOfEdit", true);
 			return;
 		}else{
-			var thePush;
-			if(req.query.typeOfEdit == 'location'){
-				if(checkForInvalidFields(req.body, 'longitude')){
-					sendError(req, res, 400, "Missing token: longitude", true);
-					return;
-				}else if(checkForInvalidFields(req.body, 'latitude')){
-					sendError(req, res, 400, "Missing token: latitude", true);
-					return;
-				}else
-					thePush = {location:newLocationObject('Point', req.body.longitude, req.body.latitude, req.user._id)};
-			}else if(req.query.typeOfEdit == 'nonLocation'){
-				if(checkForInvalidFields(req.body, 'attributes')){
-					sendError(req, res, 400, "Missing token: attributes", true);
-					return;
-				}else
-					thePush = {attributes:newAttributeArray(req.body.attributes)};
-			}else{
-				sendError(req, res, 400, "Invalid edit type", true);
-				return;
-			}
+			var thePush = new Object();
 			if(checkForInvalidFields(req, 'user')){
 				sendError(req, res, 500, "Missing req.user, fix that", true);
 				return;
@@ -184,7 +179,42 @@ exports.editItem = function(req, res){// set up for different types of edits: lo
 				sendError(req, res, 500, "Missing req.body.deviceType", true);
 				return;
 			}else
-				thePush.history = newItemHistoryEntryObject(req.user._id, req.body.deviceType, accessType.create)
+				thePush.history = newItemHistoryEntryObject(req.user._id, req.body.deviceType, accessType.create);
+
+			
+			if(req.query.typeOfEdit == 'location'){
+				if(checkForInvalidFields(req.body, 'longitude')){
+					sendError(req, res, 400, "Missing token: longitude", true);
+					return;
+				}else if(checkForInvalidFields(req.body, 'latitude')){
+					sendError(req, res, 400, "Missing token: latitude", true);
+					return;
+				}else
+					thePush.location = newLocationObject('Point', req.body.longitude, req.body.latitude, req.user._id);
+			}else if(req.query.typeOfEdit == 'nonLocation'){
+				if(checkForInvalidFields(req.body, 'attributes')){
+					sendError(req, res, 400, "Missing token: attributes", true);
+					return;
+				}else{
+					var attributeArray = newAttributeArray(req.body.attributes);
+					if(attributeArray == 'error')
+						return;
+					thePush.attributes = attributeArray;
+				}
+			}else if(req.query.typeOfEdit == 'code'){
+				if(checkForInvalidFields(req.body, 'code')){
+					sendError(req, res, 400, "Missing token: code", true);
+					return;
+				}else if(checkForInvalidFields(req.body, 'howSet')){
+					sendError(req, res, 400, "Missing token: howSet", true);
+					return;
+				}else
+					thePush.code = newCodeObject(req.body.code, req.body.howSet);
+			}else{
+				sendError(req, res, 400, "Invalid edit type", true);
+				return;
+			}
+			console.log(thePush);
 			if(checkForInvalidFields(req.query, 'itemId')){
 				sendError(req, res, 400, "Missing token: itemId", true);
 				return;
@@ -192,7 +222,7 @@ exports.editItem = function(req, res){// set up for different types of edits: lo
 				var itemsCollection = req.db.collection('items');
 				itemsCollection.update({_id:ObjectId(req.query.itemId.toString())}, {$push:thePush}, function(err,result){
 					if(err)
-						sendError(req, res, 400, "error on find method for: " + req.get('whatField') + " with info: " + req.get('fieldData'), true);
+						sendError(req, res, 500, "error on update method for: " + req.body.typeOfEdit, true);
 					else{
 						itemsCollection.find({_id:ObjectId(req.query.itemId.toString())}, allFields).toArray(function(err, items){
 							if(err)
