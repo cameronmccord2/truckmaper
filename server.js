@@ -130,6 +130,18 @@ var ItemMaperApp = function() {
             self.app.use(express.bodyParser({keepExtensions:true}));
             self.app.use(self.app.router);
             self.app.use(express.static('public'));
+            var allowCrossDomain = function(req, res, next) {
+                console.log("allowCrossDomain");
+                res.header('Access-Control-Allow-Origin', '*');
+                res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+                res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+                // intercept OPTIONS method
+                if ('OPTIONS' == req.method)
+                    res.send(200);
+                else
+                    next();
+            };
+            self.app.use(allowCrossDomain);
         });
 
         self.app.configure('development', function(){
@@ -147,18 +159,27 @@ var ItemMaperApp = function() {
 
         // paths
         self.app.all('*', function(req, res, next) {
-          res.header("Access-Control-Allow-Origin", "*");
-          res.header('Access-Control-Allow-Methods', 'PUT, GET, POST, DELETE, OPTIONS');
-          res.header("Access-Control-Allow-Headers", "X-Requested-With");
-          next();
+            res.header("Access-Control-Allow-Origin", "*");
+            res.header('Access-Control-Allow-Methods', 'PUT, GET, POST, DELETE, OPTIONS');
+            res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+            if ('OPTIONS' == req.method){
+                console.log('options hit');
+                res.send(200);
+            }
+            else
+                next();
          });
 
         self.app.get('/test2', function(req, res){
-            
+            res.send(200, 'test2 hit');
+            res.end();
         });
         self.app.get('/dbAdmin/*', database.getDbConnection);
         self.app.get('/dbAdmin/clearTokens', dbAdmin.clearTokens);
         self.app.get('/dbAdmin/clearUsers', dbAdmin.clearUsers);
+        self.app.get('/dbAdmin/dropGarbageDbs', dbAdmin.dropGarbageDbs);
+        self.app.get('/dbAdmin/checkDb', dbAdmin.checkDb);
+        self.app.get('/dbAdmin/dropBlankDbs', dbAdmin.dropBlankDbs);
         //non-security paths
         self.app.all('/map/*', database.getDbConnection);
         self.app.get('/map/user/new', user.newUser);
@@ -187,14 +208,8 @@ var ItemMaperApp = function() {
         self.app.post('/map/location/ios', location.updateLocationIos);
         self.app.post('/map/location/android', location.updateLocationAndroid);
         self.app.post('/map/location/website', location.updateLocationWebsite);
-        // self.app.post('/map/user/logout', user.logout);
         self.app.get('/map/user/logout', user.logout);
-        self.app.options('*', function(req, res){
-            console.log("options hit")
-            req.db.close();
-            res.end();
-            return;
-        });
+        
 
         // self.app.all('/map/*', database.closeDb, database.endResponse);
     };
